@@ -40,14 +40,16 @@ class SettingWindow(QDialog, setting_class):
 
     def get_inspection(self):
         self.setting_table.setRowCount(0)
-        for item in self.setting_lst:
-            self.setting_table.insertRow(self.setting_table_row_count)
+        for row_idx, item in enumerate(self.setting_lst):
+            self.setting_table.insertRow(row_idx)
             check_box_lst = []
             col = 0
             for idx, string in enumerate(item):
                 if idx == 0:
                     check_box_lst.insert(0, string)
-                    self.setting_table.setItem(idx, col, QTableWidgetItem(str(string)))
+                    product_name = QTableWidgetItem(str(string))
+                    product_name.setFont(QFont('나눔스퀘어_ac', 9))
+                    self.setting_table.setItem(row_idx, col, product_name)
                     self.setting_table.setColumnWidth(idx, 30)
                 else:
                     ckbox = QCheckBox()
@@ -61,29 +63,10 @@ class SettingWindow(QDialog, setting_class):
                     layoutCB.setContentsMargins(0, 0, 0, 0)
                     cellWidget.setLayout(layoutCB)
 
-                    self.setting_table.setCellWidget(idx, col, cellWidget)
-                #
-                # if idx == 0:
-                #     self.setting_table.setItem(self.setting_table_row_count, col, QTableWidgetItem(str(string)))
-                # else:
-                #     cellWidget = QWidget()
-                #     layoutCB = QHBoxLayout(cellWidget)
-                #     layoutCB.addWidget(item[idx])
-                #     layoutCB.setAlignment(Qt.AlignCenter)
-                #     layoutCB.setContentsMargins(0, 0, 0, 0)
-                #     cellWidget.setLayout(layoutCB)
-                #
-                #     self.setting_table.setCellWidget(idx, col, check_box_lst[idx])
-                    # chk_box_item = QTableWidgetItem()
-                    # chk_box_item.setFlags(Qt.ItemIsUserCheckable | Qt.ItemIsEnabled)
-                    # chk_box_item.setTextAlignment(Qt.AlignHCenter)
-                    # if string.__eq__('검사'):
-                    #     chk_box_item.setCheckState(Qt.Checked)
-                    # else:
-                    #     chk_box_item.setCheckState(Qt.Unchecked)
-                    # self.setting_table.setItem(row, col, chk_box_item)
+
+                    self.setting_table.setCellWidget(row_idx, col, cellWidget)
                 col += 1
-                self.setting_table.resizeColumnsToContents()
+                # self.setting_table.resizeColumnsToContents()
 
     def save_setting(self):
         setting_table = self.setting_table
@@ -96,7 +79,7 @@ class SettingWindow(QDialog, setting_class):
                 if col_idx == 0:
                     row_lst.append(setting_table.item(row_idx, col_idx).data(0))
                 else:
-                    if setting_table.item(row_idx, col_idx).checkState() == 2:
+                    if setting_table.cellWidget(row_idx, col_idx).children()[1].checkState() == 2:
                         row_lst.append('검사')
                     else:
                         row_lst.append('pass')
