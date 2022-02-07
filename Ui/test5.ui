@@ -357,7 +357,6 @@
      <string>설정</string>
     </property>
     <addaction name="actionSettings"/>
-    <addaction name="action_label_settings"/>
    </widget>
    <addaction name="menu"/>
   </widget>

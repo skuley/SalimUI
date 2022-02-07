@@ -48,11 +48,31 @@
            <number>0</number>
           </property>
           <item>
-           <widget class="QLabel" name="error_sum_label_2">
-            <property name="text">
-             <string>오류 누적 개수</string>
+           <layout class="QHBoxLayout" name="horizontalLayout">
+            <property name="bottomMargin">
+             <number>0</number>
             </property>
-           </widget>
+            <item>
+             <widget class="QLabel" name="error_sum_label_2">
+              <property name="text">
+               <string>오류 누적 개수</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QLabel" name="undetected_label">
+              <property name="layoutDirection">
+               <enum>Qt::LeftToRight</enum>
+              </property>
+              <property name="text">
+               <string/>
+              </property>
+              <property name="alignment">
+               <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+              </property>
+             </widget>
+            </item>
+           </layout>
           </item>
           <item>
            <widget class="QTableWidget" name="error_cnt_table">
@@ -437,7 +457,6 @@
      <string>설정</string>
     </property>
     <addaction name="actionSettings"/>
-    <addaction name="action_label_settings"/>
    </widget>
    <addaction name="menu"/>
   </widget>

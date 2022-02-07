@@ -24,7 +24,7 @@ check_inspection_daily = {
     'cert_mark': True,
     'cert_info': True
 }
-
+undetected_label_cnt = 0
 ocr_image = []
 
 
@@ -59,9 +59,18 @@ class Camera(QThread):
                     qImg1 = QImage(frame.data, width, height, (channel * width), QImage.Format_RGB888)
                     self.changePixmap.emit(qImg1)
 
+class UndetectedLabel(QThread):
+    label_cnt = pyqtSignal(int)
+    def __init__(self):
+        super().__init__()
+
+    def run(self):
+        global undetected_label_cnt
+        while True:
+            undetected_label_cnt = len(glob('./Image/labels/undetected/*.png'))
+            self.label_cnt.emit(undetected_label_cnt)
 
 class WindowClass(QMainWindow, form_class):
-
     def __init__(self):
         super().__init__()
         self.setupUi(self)
@@ -112,9 +121,23 @@ class WindowClass(QMainWindow, form_class):
         self.col_cnt = self.inspection_table.columnCount()
         self.reset_table()
 
+        # 인식 실패한 라벨
+        self.undetected_label.setText(f'인식 실패한 라벨: {str(undetected_label_cnt)} 개')
+        self.undetected_label.setFont(QFont('나눔스퀘어_ac', 15, QFont.Bold))
+
+        # 실시간으로 인식 실패한 라벨 갯수 파악하기
+        self.count_undetected_label = UndetectedLabel()
+        self.count_undetected_label.start()
+        self.count_undetected_label.label_cnt.connect(self.undetected_label_cnt)
+
         # 테이블(오류) 구역 error_table
         # error_table = self.error_table
         # error_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+
+    @pyqtSlot(int)
+    def undetected_label_cnt(self, label_cnt):
+        self.undetected_label.setText(f'인식 실패한 라벨: {label_cnt} 개')
+        self.undetected_label.setFont(QFont('나눔스퀘어_ac', 15, QFont.Bold))
 
     def reset_table(self):
         inspection_table = self.inspection_table
@@ -171,7 +194,6 @@ class WindowClass(QMainWindow, form_class):
                     cert_num_name = cert_num_lst[idx]['ocr_num'] + ' ' + cert_num_lst[idx]['ocr_name']
 
                     inspection_table.setItem(row, 0, QTableWidgetItem(cert_num_name))
-                    # inspection_table.setItem(row, 0, QTableWidgetItem('21222'))
                     inspection_table.setSpan(0, self.col_cnt, row + 1, 1)
             elif key == 'cert_mark':
                 inspection_table.setItem(row_idx + 1, 0, QTableWidgetItem(result[key]['ocr']))
@@ -227,20 +249,13 @@ class WindowClass(QMainWindow, form_class):
     @pyqtSlot(QImage)
     def set_image(self, qImg1):
         inspection_table = self.inspection_table
-        # row = inspection_table.rowCount()
-        # inspection_table.insertRow(row)
-        # height = self.inspection_table.size().height()
         pixmap = QPixmap.fromImage(qImg1)
-        # pixmap.scaled(height, height)
         self.camera.setPixmap(pixmap)
 
     def show_time(self):
         current_date_time = QDateTime.currentDateTime()
         label_time = current_date_time.toString('yyyy년 MM월 dd일 AP hh:mm:ss')
-        # labels = self.current_date_time, self.current_date_time_2
         self.current_date_time.setText(label_time)
-        # self.current_date_time_2.setText(label_time)
-        # labels..setText(label_time)
 
 
 if __name__ == "__main__":

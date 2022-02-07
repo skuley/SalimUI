@@ -62,8 +62,6 @@ class SettingWindow(QDialog, setting_class):
                     layoutCB.setAlignment(Qt.AlignCenter)
                     layoutCB.setContentsMargins(0, 0, 0, 0)
                     cellWidget.setLayout(layoutCB)
-
-
                     self.setting_table.setCellWidget(row_idx, col, cellWidget)
                 col += 1
                 # self.setting_table.resizeColumnsToContents()
