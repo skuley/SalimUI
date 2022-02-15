@@ -15,7 +15,7 @@
   </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QGridLayout" name="gridLayout">
-    <item row="0" column="0" colspan="3">
+    <item row="0" column="0" colspan="2">
      <widget class="QLabel" name="current_date_time">
       <property name="font">
        <font>
@@ -27,7 +27,32 @@
       </property>
      </widget>
     </item>
-    <item row="1" column="0" colspan="3">
+    <item row="2" column="1">
+     <widget class="QPushButton" name="btn_start">
+      <property name="sizePolicy">
+       <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+        <horstretch>0</horstretch>
+        <verstretch>0</verstretch>
+       </sizepolicy>
+      </property>
+      <property name="minimumSize">
+       <size>
+        <width>150</width>
+        <height>30</height>
+       </size>
+      </property>
+      <property name="text">
+       <string>시작</string>
+      </property>
+      <property name="iconSize">
+       <size>
+        <width>16</width>
+        <height>16</height>
+       </size>
+      </property>
+     </widget>
+    </item>
+    <item row="1" column="0" colspan="2">
      <widget class="QScrollArea" name="scrollArea_2">
       <property name="widgetResizable">
        <bool>true</bool>
@@ -222,7 +247,7 @@
              <enum>QAbstractItemView::NoSelection</enum>
             </property>
             <property name="rowCount">
-             <number>6</number>
+             <number>5</number>
             </property>
             <attribute name="horizontalHeaderVisible">
              <bool>false</bool>
@@ -245,7 +270,6 @@
             <attribute name="verticalHeaderStretchLastSection">
              <bool>false</bool>
             </attribute>
-            <row/>
             <row/>
             <row/>
             <row/>
@@ -282,7 +306,7 @@
              <set>QAbstractItemView::NoEditTriggers</set>
             </property>
             <property name="rowCount">
-             <number>6</number>
+             <number>5</number>
             </property>
             <property name="columnCount">
              <number>5</number>
@@ -305,7 +329,6 @@
             <attribute name="verticalHeaderHighlightSections">
              <bool>false</bool>
             </attribute>
-            <row/>
             <row/>
             <row/>
             <row/>
@@ -408,38 +431,6 @@
        </size>
       </property>
      </spacer>
-    </item>
-    <item row="2" column="1">
-     <widget class="QPushButton" name="btn_stop">
-      <property name="sizePolicy">
-       <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
-        <horstretch>0</horstretch>
-        <verstretch>0</verstretch>
-       </sizepolicy>
-      </property>
-      <property name="minimumSize">
-       <size>
-        <width>150</width>
-        <height>30</height>
-       </size>
-      </property>
-      <property name="text">
-       <string>정지</string>
-      </property>
-     </widget>
-    </item>
-    <item row="2" column="2">
-     <widget class="QPushButton" name="btn_start">
-      <property name="minimumSize">
-       <size>
-        <width>150</width>
-        <height>30</height>
-       </size>
-      </property>
-      <property name="text">
-       <string>시작</string>
-      </property>
-     </widget>
     </item>
    </layout>
   </widget>

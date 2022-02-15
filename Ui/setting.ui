@@ -49,11 +49,6 @@
        </column>
        <column>
         <property name="text">
-         <string>제품패턴검사</string>
-        </property>
-       </column>
-       <column>
-        <property name="text">
          <string>제품명검사</string>
         </property>
        </column>

@@ -33,7 +33,7 @@ class SettingWindow(QDialog, setting_class):
         self.settings = pd.read_excel('./Database/제품등록정보20211015.xlsx')
         # self.settings = pd.read_excel('제품등록정보20211015.xlsx', header=None)
         # self.settings = pd.read_excel('제품등록정보20211015.xlsx', names=list(self.settings.iloc[1])).iloc[1:].reset_index(drop=True).fillna('')
-        self.insp_lst = ['ERP품목명', '제품패턴검사', '제품명검사', '중량(입수)검사', '바코드검사', '인증마크검사', '인증정보검사']
+        self.insp_lst = ['ERP품목명', '제품명검사', '중량(입수)검사', '바코드검사', '인증마크검사', '인증정보검사']
         self.setting_lst = self.settings[self.insp_lst].values.tolist()
         self.setting_table_row_count = self.setting_table.rowCount()
         self.get_inspection()
@@ -88,6 +88,9 @@ class SettingWindow(QDialog, setting_class):
         self.settings[self.insp_lst] = save_df
         try:
             self.settings.to_excel('./Database/제품등록정보20211015.xlsx', index=False)
+            import main
+            windowClass = main.WindowClass()
+            windowClass.check_insp_daily()
             QMessageBox.about(self, 'Success', '성공적으로 저장되었습니다.')
         except PermissionError:
             QMessageBox.critical(self, 'Error', '엑셀 파일이 열려 있습니다.\n파일을 닫고 다시 설정 해주시길 바랍니다.')
