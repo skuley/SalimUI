@@ -63,6 +63,12 @@ class Db():
         nick_names = list(self.df['라벨제품명별칭'])
         return nick_names
 
+    def get_product_name_by_barcode(self, barcode):
+        df = self.df[self.df['바코드'].astype(float) == barcode]
+        lst = ['라벨제품명', '중량(수량)', '단위']
+        df = df[lst].values.tolist()
+        return ''.join([str(word) for word in df[0]])
+
     def get_product_barcodes(self):
         barcodes = list(self.df['바코드'])
         return barcodes
@@ -180,6 +186,10 @@ class WindowClass(QMainWindow, form_class):
 
         # self.th1.check_empty_time.connect(self.check_belt)
         # self.th1.changePixmap.connect(self.set_image)
+        self.cumul_result = {}
+        product_names = self.db.get_product_names()
+        for product_name in product_names:
+            self.cumul_result[product_name] = {}
 
         self.row_cnt = self.inspection_table.rowCount()
         self.col_cnt = self.inspection_table.columnCount()
@@ -386,9 +396,8 @@ class WindowClass(QMainWindow, form_class):
         return final_result_text
 
     def print_result(self, result_dict):
-        global stacked_result
         print(f'result_dict --> {result_dict}')
-        total_product_label_cnt = len(glob(os.path.join(root_path, str(result_dict['barcode'][0]), '*.png')))
+        total_product_label_cnt = len(glob(os.path.join(root_path, str(prior_barcode), '*.png')))
         for row, key in enumerate(result_dict.keys()):
             for col in range(self.col_cnt-1):
                 if row < 3:
@@ -399,16 +408,18 @@ class WindowClass(QMainWindow, form_class):
                         self.inspection_table.setItem(row+1+idx, col, QTableWidgetItem(mark[col]))
 
         final_result_text = self.set_final_result()
-        product_name = result_dict['product_name'][1] # db 에 있는 제품명
-        if product_name in stacked_result.keys():
-            stacked_result[product_name]['총인식'] = total_product_label_cnt
-            stacked_result[product_name][final_result_text] += 1
+        # product_name = result_dict['product_name'][1] # db 에 있는 제품명
+        product_name = self.db.get_product_name_by_barcode(prior_barcode)
+        if self.cumul_result[product_name]:
+            self.cumul_result[product_name][final_result_text] += 1
         else:
             product = {}
-            product[product_name] = {}
-            print(stacked_result)
-
-
+            cumulative_score = {'불합격': 0, '유보': 0, '총': 0}
+            product[product_name] = cumulative_score
+            product[product_name][final_result_text] += 1
+            self.cumul_result = product
+        self.cumul_result[product_name]['총'] = total_product_label_cnt
+        print(self.cumul_result)
 
     def show_image(self, image_path, rot_angle):
         opencv_rot_dict = {90: cv2.ROTATE_90_CLOCKWISE, 180: cv2.ROTATE_180, 270: cv2.ROTATE_90_COUNTERCLOCKWISE}
