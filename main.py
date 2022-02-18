@@ -25,8 +25,8 @@ stop_webcam_time = 3
 
 undetected_label_cnt = 0
 ocr_image = []
-root_path = 'A:/salim/detected_labels'
-# root_path = 'C:/Users/skuley/Desktop/2500000145629'
+# root_path = 'A:/salim/detected_labels'
+root_path = './Image'
 check_inspection_daily = {}
 prior_barcode = 0
 mark_kor = {
@@ -182,7 +182,7 @@ class WindowClass(QMainWindow, form_class):
         # self.th1.label_cnt.connect(self.undetected_label_cnt)
         # self.th1.result.connect(self.get_result)
         # self.th1.start()
-        result = {'barcode': '2500000145629', 'cert_mark': ['organic'], 'cert_result': {'04829818': {'in_db': False, 'mark_status': 'success', 'number': {'db': '04829818', 'ocr_rslt': '04829818'}}, '12100489': {'in_db': True, 'mark_status': 'success', 'name': {'db': '김영대', 'ocr_rslt': '김영대', 'score': 1.0}, 'number': {'db': '12100489', 'ocr_rslt': '12100489', 'score': 1.0}}}, 'date_time': '02/15/2022, 16:40:53', 'label_id': 562, 'label_loc': 'C:/Users/skuley/Desktop/2500000145629/0048.png', 'product_name': {'name': '친환경 방울토마토', 'status': 'success'}, 'rot_angle': 0, 'weight': {'db': '600g', 'ocr_rslt': '600g', 'score': 1.0, 'status': 'success'}}
+        result = {'barcode': '2500000145629', 'cert_mark': ['organic'], 'cert_result': {'04829818': {'in_db': False, 'mark_status': 'success', 'number': {'db': '04829818', 'ocr_rslt': '04829818'}}, '12100489': {'in_db': True, 'mark_status': 'success', 'name': {'db': '김영대', 'ocr_rslt': '김영대', 'score': 1.0}, 'number': {'db': '12100489', 'ocr_rslt': '12100489', 'score': 1.0}}}, 'date_time': '02/15/2022, 16:40:53', 'label_id': 562, 'label_loc': './Image/labels/2500000145629/0048.png', 'product_name': {'name': '친환경 방울토마토', 'status': 'success'}, 'rot_angle': 0, 'weight': {'db': '600g', 'ocr_rslt': '600g', 'score': 1.0, 'status': 'success'}}
 
         # self.th1.check_empty_time.connect(self.check_belt)
         # self.th1.changePixmap.connect(self.set_image)
@@ -352,6 +352,7 @@ class WindowClass(QMainWindow, form_class):
             label_image = result_dict['label_loc']
             from_path = '/mnt/vitasoft/salim/detected_labels'
             label_image = label_image.replace(from_path, root_path)
+            print(label_image)
             self.show_image(label_image, result_dict['rot_angle'])
 
             # result_dict = self.inspect_result(result_dict)
@@ -386,7 +387,7 @@ class WindowClass(QMainWindow, form_class):
         if '오류' in result_items_lst:
             final_result_text = '불합격'
             text.setText(final_result_text)
-            brush = QBrush(QColor(0, 0, 255))
+            brush = QBrush(QColor(255, 0, 0))
         elif '매칭실패' in result_items_lst:
             final_result_text = '유보'
             text.setText(final_result_text)
