@@ -88,9 +88,9 @@ class SettingWindow(QDialog, setting_class):
         self.settings[self.insp_lst] = save_df
         try:
             self.settings.to_excel('./Database/제품등록정보20211015.xlsx', index=False)
-            import main
-            windowClass = main.WindowClass()
-            windowClass.check_insp_daily()
+            # import main
+            # windowClass = main.WindowClass()
+            # windowClass.check_insp_daily()
             QMessageBox.about(self, 'Success', '성공적으로 저장되었습니다.')
         except PermissionError:
             QMessageBox.critical(self, 'Error', '엑셀 파일이 열려 있습니다.\n파일을 닫고 다시 설정 해주시길 바랍니다.')

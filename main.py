@@ -26,6 +26,7 @@ stop_webcam_time = 3
 undetected_label_cnt = 0
 ocr_image = []
 root_path = 'A:/salim/detected_labels'
+# root_path = 'C:/Users/skuley/Desktop/2500000145629'
 check_inspection_daily = {}
 prior_barcode = 0
 mark_kor = {
@@ -46,10 +47,37 @@ stacked_result = {}
 
 class Db():
     def __init__(self):
-        df = pd.read_excel('./Database/제품등록정보20211015.xlsx')
+        self.df = pd.read_excel('./Database/제품등록정보20211015.xlsx')
+        self.df = self.df[self.df['라벨제품명'].str.contains('운영중단') == False]
+        self.df = self.df.fillna('')
 
     def get_product_names(self):
+        lst = ['라벨제품명', '중량(수량)', '단위']
+        df = self.df[lst].values.tolist()
+        product_names = []
+        for idx in df:
+            product_names.append(''.join([str(word) for word in idx]))
+        return product_names
 
+    def get_product_nick_names(self):
+        nick_names = list(self.df['라벨제품명별칭'])
+        return nick_names
+
+    def get_product_barcodes(self):
+        barcodes = list(self.df['바코드'])
+        return barcodes
+
+    def get_product_inspections(self):
+        lst = ['제품명검사', '중량(입수)검사', '바코드검사', '인증마크검사', '인증정보검사']
+        inspections = self.df[lst]
+        inspections = inspections.replace('검사', 'O')
+        inspections = inspections.replace('pass', 'X')
+        inspections_lst = inspections.values.tolist()
+        barcodes = self.get_product_barcodes()
+        check_dict = {}
+        for idx, barcode in enumerate(barcodes):
+            check_dict[barcode] = inspections_lst[idx]
+        return check_dict
 
 class Camera(QThread):
     result = pyqtSignal(dict)
@@ -106,11 +134,14 @@ class WindowClass(QMainWindow, form_class):
         self.setWindowTitle("흙살림")
         self.setFont(QFont('나눔스퀘어_ac', 12))
 
+        self.db = Db()
+        self.inspection_setting = self.db.get_product_inspections()
+
         self.actionSettings.triggered.connect(self.show_setting_window)
         # self.action_label_settings.triggered.connect(self.show_label_edit_window)
 
-        self.server_manage = ServerManagement()
-        self.server_manage.start()
+        # self.server_manage = ServerManagement()
+        # self.server_manage.start()
 
         # current_date_time 라벨 실시간
         timer = QTimer(self)
@@ -145,7 +176,7 @@ class WindowClass(QMainWindow, form_class):
         # self.th1.label_cnt.connect(self.undetected_label_cnt)
         # self.th1.result.connect(self.get_result)
         # self.th1.start()
-        result = {'barcode': '2500000279935', 'cert_mark': ['organic'], 'cert_result': {'04829818': {'in_db': False, 'mark_status': 'success', 'number': {'db': '04829818', 'ocr_rslt': '04829818'}}, '12100489': {'in_db': True, 'mark_status': 'success', 'name': {'db': '김영대', 'ocr_rslt': '김영대', 'score': 1.0}, 'number': {'db': '12100489', 'ocr_rslt': '12100489', 'score': 1.0}}}, 'date_time': '02/15/2022, 16:40:53', 'label_id': 562, 'label_loc': '/mnt/vitasoft/salim/detected_labels/2500000279935/0070.png', 'product_name': {'name': '친환경 방울토마토', 'status': 'success'}, 'rot_angle': 0, 'weight': {'db': '600g', 'ocr_rslt': '600g', 'score': 1.0, 'status': 'success'}}
+        result = {'barcode': '2500000145629', 'cert_mark': ['organic'], 'cert_result': {'04829818': {'in_db': False, 'mark_status': 'success', 'number': {'db': '04829818', 'ocr_rslt': '04829818'}}, '12100489': {'in_db': True, 'mark_status': 'success', 'name': {'db': '김영대', 'ocr_rslt': '김영대', 'score': 1.0}, 'number': {'db': '12100489', 'ocr_rslt': '12100489', 'score': 1.0}}}, 'date_time': '02/15/2022, 16:40:53', 'label_id': 562, 'label_loc': 'C:/Users/skuley/Desktop/2500000145629/0048.png', 'product_name': {'name': '친환경 방울토마토', 'status': 'success'}, 'rot_angle': 0, 'weight': {'db': '600g', 'ocr_rslt': '600g', 'score': 1.0, 'status': 'success'}}
 
         # self.th1.check_empty_time.connect(self.check_belt)
         # self.th1.changePixmap.connect(self.set_image)
@@ -190,28 +221,33 @@ class WindowClass(QMainWindow, form_class):
                 return_dict[key].append('승인')
 
             if key == 'cert_mark':
-                for mark in value:
-                    mark_lst = []
-                    mark_lst.append(mark_kor[mark])
-                    cert_numbers = [item['number']['ocr_rslt'] for item in result['cert_result'].values()]
-                    mark_lst.append(', '.join([number[2] for number in cert_numbers]))
-                    mark_status = [number['mark_status'] for number in result['cert_result'].values()]
-                    count = 0
-                    for status in mark_status:
-                        if 'success' == status:
-                            count += 1
-                    if len(mark_status) > 0:
-                        raw_score = count / len(mark_status)
-                    else:
-                        raw_score = 0.0
-                    score = f"{round(raw_score * 100)}%"
-                    mark_lst.append(score)
-                    if count == len(mark_status) and raw_score >= 0.9:
-                        mark_lst.append('승인')
-                    elif 'mark_number_error' in mark_status:
-                        mark_lst.append('오류')
-                    elif 'mark_not_found' in mark_status:
-                        mark_lst.append('매칭실패')
+                if value:
+                    for mark in value:
+                        mark_lst = []
+                        mark_lst.append(mark_kor[mark])
+                        cert_numbers = [item['number']['ocr_rslt'] for item in result['cert_result'].values()]
+                        mark_lst.append(', '.join([number[2] for number in cert_numbers]))
+                        mark_status = [number['mark_status'] for number in result['cert_result'].values()]
+                        count = 0
+                        for status in mark_status:
+                            if 'success' == status:
+                                count += 1
+                        if len(mark_status) > 0:
+                            raw_score = count / len(mark_status)
+                        else:
+                            raw_score = 0.0
+                        score = f"{round(raw_score * 100)}%"
+                        mark_lst.append(score)
+
+                        if count == 2 and raw_score >= 0.9:
+                            mark_lst.append('승인')
+                        elif 'fail' in mark_status:
+                            mark_lst.append('오류')
+                        else:
+                            mark_lst.append('매칭실패')
+                        return_dict[key].append(mark_lst)
+                else:
+                    mark_lst = ['', '', '0.0', '매칭실패']
                     return_dict[key].append(mark_lst)
 
             if key == 'cert_result':
@@ -244,17 +280,18 @@ class WindowClass(QMainWindow, form_class):
 
         return return_dict
 
-    def check_insp_daily(self):
-        global check_inspection_daily
-        check_lst = []
-        lst = ['제품명검사', '중량(입수)검사', '인증마크검사', '인증정보검사']  # '바코드',
-        df[lst] = df[lst].replace('검사', 'O')
-        df[lst] = df[lst].replace('pass', 'X')
-        for idx in range(len(df[lst])):
-            check_lst.append(list(df[lst].iloc[idx].to_dict().values()))
-        barcode_lst = list(df['바코드'].to_dict().values())
-        for idx, barcode in enumerate(barcode_lst):
-            check_inspection_daily[barcode] = check_lst[idx]
+    # def check_insp_daily(self):
+    #     global check_inspection_daily
+    #     check_lst = []
+    #     # TODO: DB class 만들어서 refactoring 하기
+    #     df = self.db.get_product_inspections()
+    #     df = df.replace('검사', 'O')
+    #     df = df.replace('pass', 'X')
+    #     for idx in range(len(df)):
+    #         check_lst.append(list(df.iloc[idx].to_dict().values()))
+    #     barcode_lst = list(df['바코드'].to_dict().values())
+    #     for idx, barcode in enumerate(barcode_lst):
+    #         check_inspection_daily[barcode] = check_lst[idx]
 
     @pyqtSlot(int)
     def undetected_label_cnt(self, label_cnt):
@@ -307,8 +344,8 @@ class WindowClass(QMainWindow, form_class):
             label_image = label_image.replace(from_path, root_path)
             self.show_image(label_image, result_dict['rot_angle'])
 
-            result_dict = self.inspect_result(result_dict)
-
+            # result_dict = self.inspect_result(result_dict)
+            result_dict = {'product_name': ['유기농 표고버섯', '유기농 표고버섯', '100%', '승인'], 'weight': ['300g', '300g', '100%', '승인'], 'barcode': ['2500000145629', '2500000145629', '100%', '승인'], 'cert_mark': [['', '', '0%', '매칭실패']], 'cert_result': [['12100179 금사행버섯문과', '12100779 흙사랑버섯분과', '82%', '오류']]}
             # 인증정보 갯수만큼 행 늘리기
             mark_idx = len(result_dict['cert_result'])
             insert_row = mark_idx + self.row_cnt - 1
@@ -350,7 +387,8 @@ class WindowClass(QMainWindow, form_class):
 
     def print_result(self, result_dict):
         global stacked_result
-
+        print(f'result_dict --> {result_dict}')
+        total_product_label_cnt = len(glob(os.path.join(root_path, str(result_dict['barcode'][0]), '*.png')))
         for row, key in enumerate(result_dict.keys()):
             for col in range(self.col_cnt-1):
                 if row < 3:
@@ -363,15 +401,11 @@ class WindowClass(QMainWindow, form_class):
         final_result_text = self.set_final_result()
         product_name = result_dict['product_name'][1] # db 에 있는 제품명
         if product_name in stacked_result.keys():
-            # 제품 라벨 총인식 수
-            stacked_result[product_name]['총인식'] = len(glob(os.path.join(root_path, str(result_dict['barcode'][0]), '*.png')))
-            if final_result_text in stacked_result[product_name]:
-                stacked_result[final_result_text] += 1
-
-
-
-
-
+            stacked_result[product_name]['총인식'] = total_product_label_cnt
+            stacked_result[product_name][final_result_text] += 1
+        else:
+            product = {}
+            product[product_name] = {}
             print(stacked_result)
 
 
@@ -390,13 +424,16 @@ class WindowClass(QMainWindow, form_class):
     def check_inspection(self, barcode):
         global prior_barcode
         inspection_check_table = self.inspection_check_table
+        inspection_row_cnt = inspection_check_table.rowCount()
         prior_barcode = barcode
-        if barcode in check_inspection_daily:
-            for idx, row in enumerate(check_inspection_daily[barcode]):
+        inspections = self.inspection_setting
+        if barcode in inspections:
+            for idx, check_item in enumerate(inspections[barcode]):
                 item = inspection_check_table.item(idx+1, 0)
-                item.setBackground(Qt.gray)
-                if row == 'O':
-                    item.setBackground(Qt.white)
+                color = Qt.gray
+                if check_item == 'O':
+                    color = Qt.white
+                item.setBackground(color)
 
 
     def show_setting_window(self):
@@ -405,7 +442,6 @@ class WindowClass(QMainWindow, form_class):
 
     # ★ 당일 검사 활성화/비활성화
     def highlight_inspection(self, row):
-        global check_inspection_daily
         inspection_check_table = self.inspection_check_table
         if row != 0:
             item = inspection_check_table.item(row, 0)
@@ -413,18 +449,21 @@ class WindowClass(QMainWindow, form_class):
                 item.setBackground(Qt.white)
             else:
                 item.setBackground(Qt.gray)
+        self.set_inspection_setting()
 
+    def set_inspection_setting(self):
+        inspection_check_table = self.inspection_check_table
+        inspection_row_cnt = inspection_check_table.rowCount()
         check_lst = []
-
-        for row_idx in range(inspection_check_table.rowCount()):
+        for row in range(inspection_row_cnt):
             check = 'O'
-            if row_idx != 0:
-                item = inspection_check_table.item(row_idx, 0)
+            if row != 0:
+                item = inspection_check_table.item(row, 0)
                 if item.background().color() == Qt.gray:
                     check = 'X'
                 check_lst.append(check)
         if prior_barcode != 0:
-            check_inspection_daily[prior_barcode] = check_lst
+            self.inspection_setting[prior_barcode] = check_lst
 
     def start_webcam(self):
         global webcam_status
@@ -435,8 +474,8 @@ class WindowClass(QMainWindow, form_class):
             question_str = '촬영을 시작 하시겠습니까?'
             api_stats = 'start'
             btn_text = '정지'
-            if not check_inspection_daily:
-                 self.check_insp_daily()
+            # if not check_inspection_daily:
+            #      self.check_insp_daily()
 
         reply = QMessageBox.question(self, 'Message', question_str, QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes)
 
