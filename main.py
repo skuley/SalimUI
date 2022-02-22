@@ -2,9 +2,8 @@ import os
 import sys
 import time
 from multiprocessing import Process
+from playsound import playsound
 
-import cv2
-import pyzbar.pyzbar
 from PyQt5 import uic
 from PyQt5.QtCore import pyqtSlot, QThread, pyqtSignal, QTimer, QDateTime, QModelIndex, Qt
 from PyQt5.QtGui import QImage, QPixmap, QFont, QPalette, QBrush, QColor, QPainter
@@ -25,8 +24,8 @@ stop_webcam_time = 3
 
 undetected_label_cnt = 0
 ocr_image = []
-# root_path = 'A:/salim/detected_labels'
-root_path = './Image'
+root_path = 'A:/salim/detected_labels'
+# root_path = './Image'
 check_inspection_daily = {}
 prior_barcode = 0
 mark_kor = {
@@ -176,15 +175,15 @@ class WindowClass(QMainWindow, form_class):
         error_cnt_table.setAutoFillBackground(False)
         col = error_cnt_table.columnCount()
         row = error_cnt_table.rowCount()
+        self.error_table_labels = ['제품명', '불합격', '유보', '총']
+        error_cnt_table.setHorizontalHeaderLabels(self.error_table_labels)
 
         # 카메라
-        # self.th1 = Camera()
-        # self.th1.label_cnt.connect(self.undetected_label_cnt)
-        # self.th1.result.connect(self.get_result)
-        # self.th1.start()
-        result = {'barcode': '2500000145629', 'cert_mark': ['organic'], 'cert_result': {'04829818': {'in_db': False, 'mark_status': 'success', 'number': {'db': '04829818', 'ocr_rslt': '04829818'}}, '12100489': {'in_db': True, 'mark_status': 'success', 'name': {'db': '김영대', 'ocr_rslt': '김영대', 'score': 1.0}, 'number': {'db': '12100489', 'ocr_rslt': '12100489', 'score': 1.0}}}, 'date_time': '02/15/2022, 16:40:53', 'label_id': 562, 'label_loc': './Image/labels/2500000145629/0048.png', 'product_name': {'name': '친환경 방울토마토', 'status': 'success'}, 'rot_angle': 0, 'weight': {'db': '600g', 'ocr_rslt': '600g', 'score': 1.0, 'status': 'success'}}
+        self.th1 = Camera()
+        self.th1.label_cnt.connect(self.undetected_label_cnt)
+        self.th1.result.connect(self.get_result)
+        self.th1.start()
 
-        # self.th1.check_empty_time.connect(self.check_belt)
         # self.th1.changePixmap.connect(self.set_image)
         self.cumul_result = {}
         product_names = self.db.get_product_names()
@@ -200,7 +199,7 @@ class WindowClass(QMainWindow, form_class):
         self.inspection_check_table.setAutoFillBackground(Qt.lightGray)
         self.inspection_check_table.cellClicked.connect(self.highlight_inspection)
 
-        self.get_result(result)
+        # self.get_result(result)
 
         # 인식 실패한 라벨
         self.undetected_label.setText(f'인식 실패한 라벨: {str(undetected_label_cnt)} 개')
@@ -249,7 +248,7 @@ class WindowClass(QMainWindow, form_class):
                         score = f"{round(raw_score * 100)}%"
                         mark_lst.append(score)
 
-                        if count == 2 and raw_score >= 0.9:
+                        if count == len(mark_status) and raw_score >= 0.9:
                             mark_lst.append('승인')
                         elif 'fail' in mark_status:
                             mark_lst.append('오류')
@@ -261,32 +260,35 @@ class WindowClass(QMainWindow, form_class):
                     return_dict[key].append(mark_lst)
 
             if key == 'cert_result':
-                for num_key, num_value in value.items():
-                    cert_lst = []
-                    if num_value['in_db']:
-                        cert_lst.append(f"{num_value['number']['ocr_rslt']} {num_value['name']['ocr_rslt']}")
-                        cert_lst.append(f"{num_value['number']['db']} {num_value['name']['db']}")
-                        raw_score = (num_value['name']['score'] + num_value['number']['score']) / 2.0
-                        cert_lst.append(f"{round(raw_score * 100)}%")
-                        result = '오류'
-                        if raw_score >= 0.9:
-                            result = '승인'
-                        cert_lst.append(result)
-                    else:
-                        name = ''
-                        number = ''
-                        if 'name' in num_value and 'number' in num_value:
-                            name = num_value['name']['ocr_rslt']
-                            number = num_value['number']['ocr_rslt']
-                        elif 'number' in num_value.keys():
-                            number = num_value['number']['ocr_rslt']
-                        elif 'name' in num_value.keys():
-                            name = num_value['name']['ocr_rslt']
-                        cert_lst.append(f"{name} {number}")
-                        cert_lst.append("조회 실패")
-                        cert_lst.append('0%')
-                        cert_lst.append('매칭실패')
-                    return_dict[key].append(cert_lst)
+                if value:
+                    for num_key, num_value in value.items():
+                        cert_lst = []
+                        if num_value['in_db']:
+                            cert_lst.append(f"{num_value['number']['ocr_rslt']} {num_value['name']['ocr_rslt']}")
+                            cert_lst.append(f"{num_value['number']['db']} {num_value['name']['db']}")
+                            raw_score = (num_value['name']['score'] + num_value['number']['score']) / 2.0
+                            cert_lst.append(f"{round(raw_score * 100)}%")
+                            result = '오류'
+                            if raw_score >= 0.9:
+                                result = '승인'
+                            cert_lst.append(result)
+                        else:
+                            name = ''
+                            number = ''
+                            if 'name' in num_value and 'number' in num_value:
+                                name = num_value['name']['ocr_rslt']
+                                number = num_value['number']['ocr_rslt']
+                            elif 'number' in num_value.keys():
+                                number = num_value['number']['ocr_rslt']
+                            elif 'name' in num_value.keys():
+                                name = num_value['name']['ocr_rslt']
+                            cert_lst.append(f"{name} {number}")
+                            cert_lst.append("조회 실패")
+                            cert_lst.append('0%')
+                            cert_lst.append('매칭실패')
+                        return_dict[key].append(cert_lst)
+                else:
+                    return_dict[key].append(['', '', '0%', '매칭실패'])
 
         return return_dict
 
@@ -337,12 +339,12 @@ class WindowClass(QMainWindow, form_class):
         # if prior_barcode != barcode:
         self.check_inspection(prior_barcode)
 
-    # @pyqtSlot(dict)
+    @pyqtSlot(dict)
     def get_result(self, result_dict):
         global prior_barcode
         inspection_table = self.inspection_table
         print(f'result --> {result_dict}')
-        if result_dict.get('barcode'):
+        if result_dict.get('barcode') != 'unrecognized':
             barcode = int(result_dict['barcode'])
             prior_barcode = barcode
             self.reset_inspection_table()
@@ -355,8 +357,8 @@ class WindowClass(QMainWindow, form_class):
             print(label_image)
             self.show_image(label_image, result_dict['rot_angle'])
 
-            # result_dict = self.inspect_result(result_dict)
-            result_dict = {'product_name': ['유기농 표고버섯', '유기농 표고버섯', '100%', '승인'], 'weight': ['300g', '300g', '100%', '승인'], 'barcode': ['2500000145629', '2500000145629', '100%', '승인'], 'cert_mark': [['', '', '0%', '매칭실패']], 'cert_result': [['12100179 금사행버섯문과', '12100779 흙사랑버섯분과', '82%', '오류']]}
+            result_dict = self.inspect_result(result_dict)
+            # result_dict = {'product_name': ['유기농 표고버섯', '유기농 표고버섯', '100%', '승인'], 'weight': ['300g', '300g', '100%', '승인'], 'barcode': ['2500000145629', '2500000145629', '100%', '승인'], 'cert_mark': [['', '', '0%', '매칭실패']], 'cert_result': [['12100179 금사행버섯문과', '12100779 흙사랑버섯분과', '82%', '오류']]}
             # 인증정보 갯수만큼 행 늘리기
             mark_idx = len(result_dict['cert_result'])
             insert_row = mark_idx + self.row_cnt - 1
@@ -409,18 +411,35 @@ class WindowClass(QMainWindow, form_class):
                         self.inspection_table.setItem(row+1+idx, col, QTableWidgetItem(mark[col]))
 
         final_result_text = self.set_final_result()
-        # product_name = result_dict['product_name'][1] # db 에 있는 제품명
-        product_name = self.db.get_product_name_by_barcode(prior_barcode)
-        if self.cumul_result[product_name]:
-            self.cumul_result[product_name][final_result_text] += 1
-        else:
-            product = {}
-            cumulative_score = {'불합격': 0, '유보': 0, '총': 0}
-            product[product_name] = cumulative_score
-            product[product_name][final_result_text] += 1
-            self.cumul_result = product
-        self.cumul_result[product_name]['총'] = total_product_label_cnt
-        print(self.cumul_result)
+        if final_result_text != '합격':
+            if final_result_text == '불합격':
+                playsound('./Sound/alert.MP3', False)
+            # product_name = result_dict['product_name'][1] # db 에 있는 제품명
+            product_name = self.db.get_product_name_by_barcode(prior_barcode)
+            if self.cumul_result[product_name]:
+                self.cumul_result[product_name][final_result_text] += 1
+            else:
+                product = {}
+                cumulative_score = {'불합격': 0, '유보': 0, '총': 0}
+                product[product_name] = cumulative_score
+                product[product_name][final_result_text] += 1
+                self.cumul_result = product
+            self.cumul_result[product_name]['총'] = total_product_label_cnt
+            print(self.cumul_result)
+            self.print_cumul_result()
+
+    def print_cumul_result(self):
+        error_cnt_table = self.error_cnt_table
+        for row in range(error_cnt_table.rowCount()):
+            error_cnt_table.removeRow(row)
+        for idx, key in enumerate(self.cumul_result.keys()):
+            error_cnt_table.insertRow(idx)
+            error_cnt_table.setItem(idx, 0, QTableWidgetItem(key))
+            for value_idx, value in enumerate(self.cumul_result[key].values()):
+                error_cnt_table.setItem(idx, value_idx + 1, QTableWidgetItem(str(value)))
+
+
+
 
     def show_image(self, image_path, rot_angle):
         opencv_rot_dict = {90: cv2.ROTATE_90_CLOCKWISE, 180: cv2.ROTATE_180, 270: cv2.ROTATE_90_COUNTERCLOCKWISE}
