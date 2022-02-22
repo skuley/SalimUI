@@ -241,10 +241,11 @@ class WindowClass(QMainWindow, form_class):
                         for status in mark_status:
                             if 'success' == status:
                                 count += 1
+                        raw_score = 0.0
+
                         if len(mark_status) > 0:
                             raw_score = count / len(mark_status)
-                        else:
-                            raw_score = 0.0
+
                         score = f"{round(raw_score * 100)}%"
                         mark_lst.append(score)
 
