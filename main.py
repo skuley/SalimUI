@@ -12,10 +12,11 @@ from glob import glob
 import cv2
 import requests
 
-import Test_API
+# import Test_API
 from SettingWindow import SettingWindow
 import json
 import pandas as pd
+from enum import Enum, auto
 
 form_class = uic.loadUiType("./Ui/save_main_ui.ui")[0]
 
@@ -43,6 +44,78 @@ mark_kor = {
 }
 
 stacked_result = {}
+
+class Cumul_Count(Enum):
+    success_cs = "합격"
+    success_cu = auto()
+    pass_cs = "유보"
+    pass_cu = auto()
+    fail_cs = "불합격"
+    fail_cu = auto()
+    total = auto()
+
+    def __str__(self):
+        return self.name
+
+class Keywords(Enum):
+    product_name = '제품명'
+    weight = '중량(수량)'
+    barcode = '바코드'
+    cert_mark = '인증마크'
+    cert_result = '인증정보'
+    inspect = '검사'
+    pass_inspect = 'pass'
+
+    def kor(self):
+        return self.value
+
+    def eng(self):
+        return self.name
+
+class PdCumul:
+    def __init__(self, pd_name):
+        self.pd_name = pd_name
+        self.final_result_txt = {
+            '합격': Cumul_Count.success_cs,
+            '유보': Cumul_Count.pass_cs,
+            '불합격': Cumul_Count.fail_cs
+        }
+        self.cu_dict = {}
+        self.cs_dict = {}
+        self.prior_target = ''
+        for item in list(Cumul_Count):
+            if '_cs' in str(item):
+                self.cs_dict[str(item)] = 0
+            else:
+                self.cu_dict[str(item)] = 0
+
+    def clear(self):
+        for key in self.cs_dict.keys():
+            self.cs_dict[key] = 0
+
+        for key in self.cu_dict.keys():
+            self.cu_dict[key] = 0
+
+    def add(self, target):
+        target = str(target)
+        self.cs_dict[target] += 1
+        if self.prior_target != target:
+            self.prior_target = target
+            rest = [item for item in self.cs_dict.keys() if item != target]
+            for item in rest:
+                self.cs_dict[item] = 0
+        cumul_target = target.replace('_cs', '_cu')
+        self.cu_dict[cumul_target] += 1
+        self.cu_dict['total'] += 1
+
+    def rslt_dict(self):
+        result = {}
+        result.update(self.cs_dict)
+        result.update(self.cu_dict)
+        return result
+
+    def product_name(self):
+        return self.pd_name
 
 class Db():
     def __init__(self):
@@ -75,14 +148,19 @@ class Db():
     def get_product_inspections(self):
         lst = ['제품명검사', '중량(입수)검사', '바코드검사', '인증마크검사', '인증정보검사']
         inspections = self.df[lst]
-        inspections = inspections.replace('검사', 'O')
-        inspections = inspections.replace('pass', 'X')
+        # inspections = inspections.replace('검사', 'O')
+        # inspections = inspections.replace('pass', 'X')
         inspections_lst = inspections.values.tolist()
         barcodes = self.get_product_barcodes()
         check_dict = {}
-        for idx, barcode in enumerate(barcodes):
-            check_dict[barcode] = inspections_lst[idx]
+        lst = ['제품명', '중량(수량)', '바코드', '인증마크', '인증정보']
+        for idx, item in enumerate(inspections_lst):
+            inspection_dict = {}
+            for value_idx, value in enumerate(item):
+                inspection_dict[lst[value_idx]] = value
+            check_dict[barcodes[idx]] = inspection_dict
         return check_dict
+
 
 class Camera(QThread):
     result = pyqtSignal(dict)
@@ -108,30 +186,6 @@ class Camera(QThread):
                     self.result.emit(result)
 
 
-        # while video.isOpened():
-        #     if webcam_status:
-        #         ret, frame = video.read()
-        #         if ret:
-        #             if len(ocr_image) < 1:
-        #                 ocr_image.append(frame)
-        #             # old_output, count = pp.tracking(frame, old_output, count)
-        #             # self.result.emit(ocr_parsed_result)
-        #             frame = cv2.resize(frame, (200, 200))
-        #             height, width, channel = frame.shape
-        #             qImg1 = QImage(frame.data, width, height, (channel * width), QImage.Format_RGB888)
-        #             self.changePixmap.emit(qImg1)
-
-
-class ServerManagement(QThread):
-    def __init__(self):
-        super().__init__()
-
-    def run(self) -> None:
-        server = Process(target=Test_API.app.run(host='0.0.0.0', port=5000))
-        server.start()
-        server.join()
-
-
 class WindowClass(QMainWindow, form_class):
     def __init__(self):
         super().__init__()
@@ -143,12 +197,7 @@ class WindowClass(QMainWindow, form_class):
         self.inspection_setting = self.db.get_product_inspections()
 
         self.actionSettings.triggered.connect(self.show_setting_window)
-        # self.action_label_settings.triggered.connect(self.show_label_edit_window)
 
-        # self.server_manage = ServerManagement()
-        # self.server_manage.start()
-
-        # current_date_time 라벨 실시간
         timer = QTimer(self)
         timer.timeout.connect(self.show_time)
         timer.start()
@@ -159,11 +208,24 @@ class WindowClass(QMainWindow, form_class):
         # self.img_column.setText('검출이미지')
         self.camera = self.label_img
         self.camera.setScaledContents(True)
-        default_img = cv2.imread('./Image/default.jpg')
-        default_img = cv2.resize(default_img, (200, 200))
-        height, width, channel = default_img.shape
-        pixmap = QPixmap.fromImage(QImage(default_img.data, width, height, (channel * width), QImage.Format_RGB888))
+        self.default_img = cv2.imread('./Image/default.jpg')
+        self.default_img = cv2.resize(self.default_img, (200, 200))
+        height, width, channel = self.default_img.shape
+        pixmap = QPixmap.fromImage(
+            QImage(self.default_img.data, width, height, (channel * width), QImage.Format_RGB888))
         self.camera.setPixmap(pixmap)
+        
+        # 결과 출력하는 테이블 영역
+        inspection_table = self.inspection_table
+        self.insp_tbl_init_row = inspection_table.rowCount()
+        self.insp_tbl_init_col = inspection_table.columnCount()
+        keywords_lst = list(Keywords)
+        for row in range(5):
+            inspection_table.insertRow(row)
+            inspection_table.setItem(row, 0, QTableWidgetItem(keywords_lst[row].kor()))
+        inspection_table.setSpan(0, -1, 0, self.insp_tbl_init_col)
+        inspection_table.cellClicked.connect(self.highlight_inspection)
+        # self.reset_inspection_table()
 
         # 테이블(객체 오류 개수) 구역 error_cnt_table
         error_cnt_table = self.error_cnt_table
@@ -178,11 +240,13 @@ class WindowClass(QMainWindow, form_class):
         self.error_table_labels = ['제품명', '불합격', '유보', '총']
         error_cnt_table.setHorizontalHeaderLabels(self.error_table_labels)
 
+        
+
         # 카메라
-        self.th1 = Camera()
-        self.th1.label_cnt.connect(self.undetected_label_cnt)
-        self.th1.result.connect(self.get_result)
-        self.th1.start()
+        # self.th1 = Camera()
+        # self.th1.label_cnt.connect(self.undetected_label_cnt)
+        # self.th1.result.connect(self.get_result)
+        # self.th1.start()
 
         # self.th1.changePixmap.connect(self.set_image)
         self.cumul_result = {}
@@ -190,16 +254,35 @@ class WindowClass(QMainWindow, form_class):
         for product_name in product_names:
             self.cumul_result[product_name] = {}
 
-        self.row_cnt = self.inspection_table.rowCount()
-        self.col_cnt = self.inspection_table.columnCount()
-        self.check_table_rowcnt = self.inspection_check_table.rowCount()
-        self.check_table_colcnt = self.inspection_check_table.columnCount()
-        self.reset_inspection_table()
-        self.reset_inspection_check_table(prior_barcode)
-        self.inspection_check_table.setAutoFillBackground(Qt.lightGray)
-        self.inspection_check_table.cellClicked.connect(self.highlight_inspection)
 
-        # self.get_result(result)
+        # self.check_table_rowcnt = self.inspection_check_table.rowCount()
+        # self.check_table_colcnt = self.inspection_check_table.columnCount()
+        # self.reset_inspection_table()
+        # self.reset_inspection_check_table(prior_barcode)
+        # self.inspection_check_table.setAutoFillBackground(Qt.lightGray)
+
+
+        results = [{'barcode': '2500000279935', 'cert_mark': ['organic'], 'cert_result': {
+                       '04829818': {'in_db': False, 'mark_status': 'success',
+                                    'number': {'db': '04829818', 'ocr_rslt': '04829818'}},
+                       '12100489': {'in_db': True, 'mark_status': 'success',
+                                    'name': {'db': '김영대', 'ocr_rslt': '김영대', 'score': 1.0},
+                                    'number': {'db': '12100489', 'ocr_rslt': '12100489', 'score': 1.0}}},
+                    'date_time': '02/15/2022, 16:40:53', 'label_id': 562,
+                    'label_loc': '/mnt/vitasoft/salim/detected_labels/2500000279935/0562.png',
+                    'product_name': {'name': '친환경 방울토마토', 'status': 'success'}, 'rot_angle': 0,
+                    'weight': {'db': '600g', 'ocr_rslt': '600g', 'score': 1.0, 'status': 'success'}},
+                   {'barcode': '2500000279935', 'cert_mark': ['organic'], 'cert_result': {
+                       '12100489': {'in_db': True, 'mark_status': 'success',
+                                    'name': {'db': '김영대', 'ocr_rslt': '김영대', 'score': 1.0},
+                                    'number': {'db': '12100489', 'ocr_rslt': '12100409', 'score': 0.875}}},
+                    'date_time': '02/15/2022, 15:35:24', 'label_id': 157,
+                    'label_loc': '/mnt/vitasoft/salim/detected_labels/2500000279935/0157.png',
+                    'product_name': {'name': '친환경 방울토마토', 'status': 'success'}, 'rot_angle': 180,
+                    'weight': {'db': '600g', 'ocr_rslt': '600g', 'score': 1.0, 'status': 'success'}}]
+
+        for result in results:
+            self.get_result(result)
 
         # 인식 실패한 라벨
         self.undetected_label.setText(f'인식 실패한 라벨: {str(undetected_label_cnt)} 개')
@@ -312,71 +395,64 @@ class WindowClass(QMainWindow, form_class):
         self.undetected_label.setFont(QFont('나눔스퀘어_ac', 15, QFont.Bold))
 
     def reset_inspection_table(self):
-        # 결과 출력하는 테이블
+        # 결과 출력하는 테이블 리셋
         inspection_table = self.inspection_table
         inspection_table.clear()
-        inspection_table.setRowCount(self.row_cnt)
-
-        # 테이블(검사) 구역 inspection_table
+        inspection_table.setRowCount(0)
         inspection_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         inspection_table.setSelectionMode(QAbstractItemView.NoSelection)
         inspection_table.setAutoFillBackground(False)
+        self.inspection_table_labels = ['구분', '인식결과', '등록정보', '싱크율', '결과', '종합판단']
+        inspection_table.setHorizontalHeaderLabels(self.inspection_table_labels)
 
-        # 기본 구분
-        columns_title = ['인식결과', '등록정보', '싱크율', '결과']
-        for column in range(self.col_cnt - 1):
-            inspection_table.setItem(0, column, QTableWidgetItem(columns_title[column]))
-
-        inspection_table.setSpan(0, self.col_cnt - 1, self.row_cnt, 1)
-
-        # 알람 설정 테이블
-    def reset_inspection_check_table(self, barcode):
-        inspection_check_table = self.inspection_check_table
-        inspection_check_table.clear()
-        inspection_check_table.setRowCount(self.check_table_rowcnt)
-        rows_title = ['구분', '제품명', '중량(입수)', '바코드', '인증마크', '인증정보']
-        for row in range(self.row_cnt):
-            inspection_check_table.setItem(row, 0, QTableWidgetItem(rows_title[row]))
-        # if prior_barcode != barcode:
-        self.check_inspection(prior_barcode)
 
     @pyqtSlot(dict)
     def get_result(self, result_dict):
         global prior_barcode
         inspection_table = self.inspection_table
+        self.reset_inspection_table()
         print(f'result --> {result_dict}')
-        if result_dict.get('barcode') != 'unrecognized':
-            barcode = int(result_dict['barcode'])
+        if result_dict.get(Keywords.barcode.eng()) != 'unrecognized':
+            barcode = int(result_dict[Keywords.barcode.eng()])
             prior_barcode = barcode
-            self.reset_inspection_table()
-            self.reset_inspection_check_table(barcode)
-
             # 이미지 불러오기
-            label_image = result_dict['label_loc']
-            from_path = '/mnt/vitasoft/salim/detected_labels'
-            label_image = label_image.replace(from_path, root_path)
-            print(label_image)
-            self.show_image(label_image, result_dict['rot_angle'])
+            # label_image = result_dict['label_loc']
+            # from_path = '/mnt/vitasoft/salim/detected_labels'
+            # label_image = label_image.replace(from_path, root_path)
+            # print(label_image)
+            # self.show_image(label_image, result_dict['rot_angle'])
+            height, width, channel = self.default_img.shape
+            pixmap = QPixmap.fromImage(
+                QImage(self.default_img.data, width, height, (channel * width), QImage.Format_RGB888))
+            self.camera.setPixmap(pixmap)
 
+            # OCR 결과들을 하나하나 확인하여 결과/점수 매기기
             result_dict = self.inspect_result(result_dict)
-            # result_dict = {'product_name': ['유기농 표고버섯', '유기농 표고버섯', '100%', '승인'], 'weight': ['300g', '300g', '100%', '승인'], 'barcode': ['2500000145629', '2500000145629', '100%', '승인'], 'cert_mark': [['', '', '0%', '매칭실패']], 'cert_result': [['12100179 금사행버섯문과', '12100779 흙사랑버섯분과', '82%', '오류']]}
-            # 인증정보 갯수만큼 행 늘리기
-            mark_idx = len(result_dict['cert_result'])
-            insert_row = mark_idx + self.row_cnt - 1
-            if insert_row > self.row_cnt:
-                diff = insert_row - self.row_cnt
-                for row in range(diff):
-                    inspection_table.insertRow(self.row_cnt+row)
-                    self.inspection_check_table.insertRow(self.check_table_rowcnt+row)
-                    self.inspection_check_table.setItem(self.check_table_rowcnt+row, 0, QTableWidgetItem('인증정보'))
-                inspection_table.setSpan(0, self.col_cnt - 1, self.row_cnt + diff, 1)
-                
-            # ocr 결과 출력하기
-            self.print_result(result_dict)
+
+            # ocr(result_dict)를 list로 반환하여 결과 출력하기
+            print_lst = self.result_dict_to_lst(result_dict)
+            self.print_result(print_lst, barcode)
+
+    def result_dict_to_lst(self, result_dict):
+        print(f'result_dict --> {result_dict}')
+        import numpy as np
+        print_lst = []
+        for key, value in result_dict.items():
+            nd_array = np.array(value)
+            if nd_array.ndim >= 2:
+                for item in value:
+                    item.insert(0, Keywords[key].kor())
+                    print_lst.append(item)
+            else:
+                value.insert(0, Keywords[key].kor())
+                print_lst.append(value)
+        return print_lst
 
     def set_final_result(self):
         inspection_table = self.inspection_table
-        result_items_lst = [inspection_table.item(row_idx, 3).text() for row_idx in range(1, self.row_cnt)] # ocr 항목들 결과값들 list
+        row_cnt = inspection_table.rowCount()
+        result_items_lst = [inspection_table.item(row_idx, 4).text() for row_idx in
+                            range(1, row_cnt)]  # ocr 항목들 결과값들 list
         final_result_text = '합격'
         text = QTableWidgetItem()
         text.setText(final_result_text)
@@ -396,20 +472,20 @@ class WindowClass(QMainWindow, form_class):
             text.setText(final_result_text)
             brush = QBrush(QColor(128, 128, 128))
         text.setForeground(brush)
-        inspection_table.setItem(0, self.col_cnt-1, text)
+        inspection_table.setItem(0, self.insp_tbl_init_col - 1, text)
         return final_result_text
 
-    def print_result(self, result_dict):
-        print(f'result_dict --> {result_dict}')
-        total_product_label_cnt = len(glob(os.path.join(root_path, str(prior_barcode), '*.png')))
-        for row, key in enumerate(result_dict.keys()):
-            for col in range(self.col_cnt-1):
-                if row < 3:
-                    self.inspection_table.setItem(row+1, col, QTableWidgetItem(result_dict[key][col]))
-                else:
-                    mark_lst = result_dict[key]
-                    for idx, mark in enumerate(mark_lst):
-                        self.inspection_table.setItem(row+1+idx, col, QTableWidgetItem(mark[col]))
+    def print_result(self, print_lst, barcode):
+        # 리스트로 반환된 결과들을 length만큼 행을 만들어 출력한다
+        for row_idx, row in enumerate(print_lst):
+            self.inspection_table.insertRow(row_idx)
+            for col_idx, cell in enumerate(row):
+                item = QTableWidgetItem()
+                item.setText(cell)
+                if col_idx >= 3:
+                    item.setTextAlignment(Qt.AlignCenter)
+                self.inspection_table.setItem(row_idx, col_idx, QTableWidgetItem(item))
+        self.inspection_table.setSpan(0, 5, row_idx+1, 5)
 
         final_result_text = self.set_final_result()
         if final_result_text != '합격':
@@ -425,9 +501,12 @@ class WindowClass(QMainWindow, form_class):
                 product[product_name] = cumulative_score
                 product[product_name][final_result_text] += 1
                 self.cumul_result = product
-            self.cumul_result[product_name]['총'] = total_product_label_cnt
+            self.cumul_result[product_name]['총'] = 0
             print(self.cumul_result)
             self.print_cumul_result()
+
+        # barcode로 검사/pass 여부 확인하기
+        self.check_inspection(barcode)
 
     def print_cumul_result(self):
         error_cnt_table = self.error_cnt_table
@@ -439,53 +518,65 @@ class WindowClass(QMainWindow, form_class):
             for value_idx, value in enumerate(self.cumul_result[key].values()):
                 error_cnt_table.setItem(idx, value_idx + 1, QTableWidgetItem(str(value)))
 
-
-
-
     def show_image(self, image_path, rot_angle):
         opencv_rot_dict = {90: cv2.ROTATE_90_CLOCKWISE, 180: cv2.ROTATE_180, 270: cv2.ROTATE_90_COUNTERCLOCKWISE}
         label_image = cv2.imread(image_path)
         label_image = cv2.cvtColor(label_image, cv2.COLOR_BGR2RGB)
         label_image = cv2.resize(label_image, (320, 320))
         if rot_angle != 0:
-            label_image = cv2.rotate(label_image,opencv_rot_dict[rot_angle])
+            label_image = cv2.rotate(label_image, opencv_rot_dict[rot_angle])
         height, width, channel = label_image.shape
         pixmap = QPixmap.fromImage(QImage(label_image.data, width, height, (channel * width), QImage.Format_RGB888))
         self.camera.setPixmap(pixmap)
 
     def check_inspection(self, barcode):
-        global prior_barcode
-        inspection_check_table = self.inspection_check_table
-        inspection_row_cnt = inspection_check_table.rowCount()
-        prior_barcode = barcode
+        # global prior_barcode
+        # prior_barcode = barcode
+        inspection_table = self.inspection_table
         inspections = self.inspection_setting
         if barcode in inspections:
-            for idx, check_item in enumerate(inspections[barcode]):
-                item = inspection_check_table.item(idx+1, 0)
+            for row_idx in range(inspection_table.rowCount()):
+                item = inspection_table.item(row_idx, 0)
+                print(item.text(), inspections[barcode][item.text()])
                 color = Qt.gray
-                if check_item == 'O':
+                if inspections[barcode][item.text()] == Keywords.inspect.kor():
                     color = Qt.white
                 item.setBackground(color)
-
+            # for idx, check_item in enumerate(inspections[barcode]):
+            #     item = inspection_table.item(idx, 0)
+            #     color = Qt.gray
+            #     if check_item == 'O':
+            #         color = Qt.white
+            #     item.setBackground(color)
 
     def show_setting_window(self):
         self.setting_page = SettingWindow()
         self.setting_page.show()
 
     # ★ 당일 검사 활성화/비활성화
-    def highlight_inspection(self, row):
-        inspection_check_table = self.inspection_check_table
-        if row != 0:
-            item = inspection_check_table.item(row, 0)
-            if item.background() == Qt.gray:
-                item.setBackground(Qt.white)
+    def highlight_inspection(self, row, column):
+        inspection_table = self.inspection_table
+        check_keywords = [Keywords.cert_mark.kor(), Keywords.cert_result.kor()]
+        highlight_lst = []
+        if column == 0:
+            item = inspection_table.item(row, column)
+            if item.text() in check_keywords:
+                same_keyword_rows = inspection_table.findItems(item.text(), Qt.MatchContains)
+                for row in same_keyword_rows:
+                    highlight_lst.append(row)
             else:
-                item.setBackground(Qt.gray)
-        self.set_inspection_setting()
+                highlight_lst.append(item)
+            for item in highlight_lst:
+                if item.background() == Qt.gray:
+                    item.setBackground(Qt.white)
+                else:
+                    item.setBackground(Qt.gray)
+        # self.set_inspection_setting()
 
     def set_inspection_setting(self):
         inspection_check_table = self.inspection_check_table
         inspection_row_cnt = inspection_check_table.rowCount()
+
         check_lst = []
         for row in range(inspection_row_cnt):
             check = 'O'
@@ -494,8 +585,7 @@ class WindowClass(QMainWindow, form_class):
                 if item.background().color() == Qt.gray:
                     check = 'X'
                 check_lst.append(check)
-        if prior_barcode != 0:
-            self.inspection_setting[prior_barcode] = check_lst
+        self.inspection_setting[prior_barcode] = check_lst
 
     def start_webcam(self):
         global webcam_status
@@ -518,7 +608,6 @@ class WindowClass(QMainWindow, form_class):
             if response.status_code == 200:
                 print(f'---------------- api_{api_stats} ----------------')
                 self.btn_start.setText(btn_text)
-
 
     def show_time(self):
         current_date_time = QDateTime.currentDateTime()
