@@ -1,11 +1,12 @@
 from PyQt5.QtWidgets import *
 from PyQt5 import uic
 from PyQt5.QtGui import QFont
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QSettings
 
 import pandas as pd
 
 setting_class = uic.loadUiType("./Ui/setting.ui")[0]
+
 
 class SettingWindow(QDialog, setting_class):
     def __init__(self):
@@ -30,13 +31,21 @@ class SettingWindow(QDialog, setting_class):
         reset = self.buttonBox.button(QDialogButtonBox.Reset)
         reset.setText('초기화')
         reset.clicked.connect(self.reset_setting)
-        self.settings = pd.read_excel('./Database/제품등록정보20211015.xlsx')
-        # self.settings = pd.read_excel('제품등록정보20211015.xlsx', header=None)
-        # self.settings = pd.read_excel('제품등록정보20211015.xlsx', names=list(self.settings.iloc[1])).iloc[1:].reset_index(drop=True).fillna('')
-        self.insp_lst = ['ERP품목명', '제품명검사', '중량(입수)검사', '바코드검사', '인증마크검사', '인증정보검사']
-        self.setting_lst = self.settings[self.insp_lst].values.tolist()
-        self.setting_table_row_count = self.setting_table.rowCount()
-        self.get_inspection()
+
+        open = self.buttonBox.button(QDialogButtonBox.Open)
+        open.setText('열기')
+        open.clicked.connect(self.open_database)
+
+        settings = QSettings()
+        settings.value()
+
+        # self.settings = pd.read_excel('./Database/제품등록정보20211015.xlsx')
+        # # self.settings = pd.read_excel('제품등록정보20211015.xlsx', header=None)
+        # # self.settings = pd.read_excel('제품등록정보20211015.xlsx', names=list(self.settings.iloc[1])).iloc[1:].reset_index(drop=True).fillna('')
+        # self.insp_lst = ['ERP품목명', '제품명검사', '중량(입수)검사', '바코드검사', '인증마크검사', '인증정보검사']
+        # self.setting_lst = self.settings[self.insp_lst].values.tolist()
+        # self.setting_table_row_count = self.setting_table.rowCount()
+        # self.get_inspection()
 
     def get_inspection(self):
         self.setting_table.setRowCount(0)
@@ -97,3 +106,6 @@ class SettingWindow(QDialog, setting_class):
 
     def reset_setting(self):
         self.get_inspection()
+
+    def open_database(self):
+        QFileDialog.getOpenFileName(self, '열기')
