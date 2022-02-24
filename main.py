@@ -244,7 +244,6 @@ class WindowClass(QMainWindow, form_class):
         # self.reset_inspection_check_table(prior_barcode)
         # self.inspection_check_table.setAutoFillBackground(Qt.lightGray)
 
-
         results = [{'barcode': '2500000279935', 'cert_mark': ['organic'], 'cert_result': {
                        '12100489': {'in_db': True, 'mark_status': 'success',
                                     'name': {'db': '김영대', 'ocr_rslt': '김영대', 'score': 1.0},
@@ -253,15 +252,25 @@ class WindowClass(QMainWindow, form_class):
                     'label_loc': '/mnt/vitasoft/salim/detected_labels/2500000279935/0157.png',
                     'product_name': {'name': '친환경 방울토마토', 'status': 'success'}, 'rot_angle': 180,
                     'weight': {'db': '600g', 'ocr_rslt': '600g', 'score': 1.0, 'status': 'success'}},
-                   {'barcode': '2500000279935', 'cert_mark': ['organic'], 'cert_result': {
+                   {'barcode': '2500000252983', 'cert_mark': ['organic'], 'cert_result': {
                        '04829818': {'in_db': False, 'mark_status': 'success',
                                     'number': {'db': '04829818', 'ocr_rslt': '04829818'}},
+                       '04829811': {'in_db': False, 'mark_status': 'success',
+                                    'number': {'db': '04829818', 'ocr_rslt': '04829811'}},
+                       '04829813': {'in_db': False, 'mark_status': 'success',
+                                    'number': {'db': '04829818', 'ocr_rslt': '04829813'}},
+                       '04829814': {'in_db': False, 'mark_status': 'success',
+                                    'number': {'db': '04829818', 'ocr_rslt': '04829814'}},
+                       '04829815': {'in_db': False, 'mark_status': 'success',
+                                    'number': {'db': '04829818', 'ocr_rslt': '04829815'}},
+                       '04829816': {'in_db': False, 'mark_status': 'success',
+                                    'number': {'db': '04829818', 'ocr_rslt': '04829816'}},
                        '12100489': {'in_db': True, 'mark_status': 'success',
                                     'name': {'db': '김영대', 'ocr_rslt': '김영대', 'score': 1.0},
                                     'number': {'db': '12100489', 'ocr_rslt': '12100489', 'score': 1.0}}},
                     'date_time': '02/15/2022, 16:40:53', 'label_id': 562,
                     'label_loc': '/mnt/vitasoft/salim/detected_labels/2500000279935/0562.png',
-                    'product_name': {'name': '친환경 방울토마토', 'status': 'success'}, 'rot_angle': 0,
+                    'product_name': {'name': '친환경 대추방울토마토', 'status': 'success'}, 'rot_angle': 0,
                     'weight': {'db': '600g', 'ocr_rslt': '600g', 'score': 1.0, 'status': 'success'}}
                    ]
 
@@ -420,7 +429,7 @@ class WindowClass(QMainWindow, form_class):
             self.print_result(print_lst, barcode)
 
     def result_dict_to_lst(self, result_dict):
-        print(f'result_dict --> {result_dict}')
+        # print(f'result_dict --> {result_dict}')
         import numpy as np
         print_lst = []
         for key, value in result_dict.items():
@@ -432,6 +441,7 @@ class WindowClass(QMainWindow, form_class):
             else:
                 value.insert(0, Keywords[key].kor())
                 print_lst.append(value)
+        print(f'print_lst ---> {print_lst}')
         return print_lst
 
     def set_final_result(self):
@@ -439,7 +449,7 @@ class WindowClass(QMainWindow, form_class):
         row_cnt = inspection_table.rowCount()
         result_items_lst = [inspection_table.item(row_idx, 4).text() for row_idx in
                             range(1, row_cnt)]  # ocr 항목들 결과값들 list
-        final_result_text = '합격'
+        final_result_text = Keywords.success.kor()
         text = QTableWidgetItem()
         text.setText(final_result_text)
         font = QFont()
@@ -448,13 +458,13 @@ class WindowClass(QMainWindow, form_class):
         font.setBold(True)
         text.setFont(font)
         text.setTextAlignment(Qt.AlignCenter)
-        brush = QBrush(QColor(0, 0, 0))
-        if '오류' in result_items_lst:
-            final_result_text = '불합격'
+        brush = QBrush(Qt.blue)
+        if Keywords.error.kor() in result_items_lst:
+            final_result_text = Keywords.fail.kor()
             text.setText(final_result_text)
-            brush = QBrush(QColor(255, 0, 0))
-        elif '매칭실패' in result_items_lst:
-            final_result_text = '유보'
+            brush = QBrush(Qt.red)
+        elif Keywords.match_fail.kor() in result_items_lst:
+            final_result_text = Keywords._pass.kor()
             text.setText(final_result_text)
             brush = QBrush(QColor(128, 128, 128))
         text.setForeground(brush)
@@ -472,29 +482,7 @@ class WindowClass(QMainWindow, form_class):
                     item.setTextAlignment(Qt.AlignCenter)
                 self.inspection_table.setItem(row_idx, col_idx, QTableWidgetItem(item))
         self.inspection_table.setSpan(0, 5, row_idx+1, 5)
-
         self.print_cumul_result(barcode)
-
-
-
-        # if final_result_text != '합격':
-        #     if final_result_text == '불합격':
-        #         playsound('./Sound/alert.MP3', False)
-        #     # product_name = result_dict['product_name'][1] # db 에 있는 제품명
-        #     product_name = self.db.get_product_name_by_barcode(prior_barcode)
-        #     if self.cumul_result[product_name]:
-        #         self.cumul_result[product_name][final_result_text] += 1
-        #     else:
-        #         product = {}
-        #         cumulative_score = {'불합격': 0, '유보': 0, '총': 0}
-        #         product[product_name] = cumulative_score
-        #         product[product_name][final_result_text] += 1
-        #         self.cumul_result = product
-        #     self.cumul_result[product_name]['총'] = 0
-        #     print(self.cumul_result)
-        #     self.print_cumul_result()
-
-        # barcode로 검사/pass 여부 확인하기
         self.check_inspection(barcode)
 
     def print_cumul_result(self, barcode):
@@ -532,7 +520,6 @@ class WindowClass(QMainWindow, form_class):
         if barcode in inspections:
             for row_idx in range(inspection_table.rowCount()):
                 item = inspection_table.item(row_idx, 0)
-                print(item.text(), inspections[barcode][item.text()])
                 color = Qt.gray
                 if inspections[barcode][item.text()] == Keywords.inspect.kor():
                     color = Qt.white
@@ -550,8 +537,8 @@ class WindowClass(QMainWindow, form_class):
         # TODO: 패스일경우 [***** 다시 리팩토링 하기 *****]
         if column == 0:
             item = inspection_table.item(row, column)
-            item_text = item.text()
-            if item.text().replace(' pass', '') in check_keywords:
+            item_text = item.text().replace(' pass', '')
+            if item_text in check_keywords:
                 same_keyword_rows = inspection_table.findItems(item.text(), Qt.MatchContains)
                 for row in same_keyword_rows:
                     highlight_lst.append(row)
@@ -559,7 +546,6 @@ class WindowClass(QMainWindow, form_class):
                 highlight_lst.append(item)
 
             for item in highlight_lst:
-                item_text = item_text.replace(' pass', '')
                 if item.background() == Qt.gray:
                     item.setText(f'{item_text}')
                     item.setBackground(Qt.white)

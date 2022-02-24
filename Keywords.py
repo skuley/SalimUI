@@ -11,6 +11,14 @@ class Keywords(Enum):
     inspect = '검사'
     pass_inspect = 'pass'
 
+    # 결과
+    accept = '승인'
+    error = '오류'
+    match_fail = '매칭실패'
+    success = '합격'
+    fail = '불합격'
+    _pass = '유보'
+
     # 인증마크
     organic = '유기농'
     nonpesticide = '무농약'
@@ -23,7 +31,7 @@ class Keywords(Enum):
     master = '식품명인'
     processed = '가공식품'
     carbon = '저탄소(LOW CARBON)'
-    
+
     # 연속 / 누적 검사 결과
     success_cs = '합격(연속)'
     success_cu = '합격(누적)'
@@ -52,11 +60,11 @@ class Keywords(Enum):
         return [
             self.product_name,
             self.success_cs,
-            self.fail_cs,
             self.pass_cs,
+            self.fail_cs,
             self.success_cu,
-            self.fail_cu,
             self.pass_cu,
+            self.fail_cu,
             self.total
         ]
 
