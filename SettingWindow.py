@@ -2,6 +2,7 @@ from PyQt5.QtWidgets import *
 from PyQt5 import uic
 from PyQt5.QtGui import QFont
 from PyQt5.QtCore import Qt, QSettings
+import os
 
 import pandas as pd
 
@@ -9,12 +10,15 @@ setting_class = uic.loadUiType("./Ui/setting.ui")[0]
 
 
 class SettingWindow(QDialog, setting_class):
-    def __init__(self):
+    def __init__(self, db_file_nm):
         super().__init__()
         # self.resize(1000, 700)
+        self.db_file_nm = db_file_nm
         self.setupUi(self)
         self.setWindowTitle("설정")
         self.setFont(QFont('나눔스퀘어_ac', 12))
+
+        self.path_name.setText(os.path.basename(self.db_file_nm))
 
         setting_table = self.setting_table
         setting_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
@@ -36,16 +40,13 @@ class SettingWindow(QDialog, setting_class):
         open.setText('열기')
         open.clicked.connect(self.open_database)
 
-        settings = QSettings()
-        settings.value()
-
-        # self.settings = pd.read_excel('./Database/제품등록정보20211015.xlsx')
-        # # self.settings = pd.read_excel('제품등록정보20211015.xlsx', header=None)
-        # # self.settings = pd.read_excel('제품등록정보20211015.xlsx', names=list(self.settings.iloc[1])).iloc[1:].reset_index(drop=True).fillna('')
-        # self.insp_lst = ['ERP품목명', '제품명검사', '중량(입수)검사', '바코드검사', '인증마크검사', '인증정보검사']
-        # self.setting_lst = self.settings[self.insp_lst].values.tolist()
-        # self.setting_table_row_count = self.setting_table.rowCount()
-        # self.get_inspection()
+        self.settings = pd.read_excel(db_file_nm)
+        # self.settings = pd.read_excel('제품등록정보20211015.xlsx', header=None)
+        # self.settings = pd.read_excel('제품등록정보20211015.xlsx', names=list(self.settings.iloc[1])).iloc[1:].reset_index(drop=True).fillna('')
+        self.insp_lst = ['ERP품목명', '제품명검사', '중량(입수)검사', '바코드검사', '인증마크검사', '인증정보검사']
+        self.setting_lst = self.settings[self.insp_lst].values.tolist()
+        self.setting_table_row_count = self.setting_table.rowCount()
+        self.get_inspection()
 
     def get_inspection(self):
         self.setting_table.setRowCount(0)
@@ -96,7 +97,7 @@ class SettingWindow(QDialog, setting_class):
         save_df = pd.DataFrame(table_lst[1:], columns=table_lst[0])
         self.settings[self.insp_lst] = save_df
         try:
-            self.settings.to_excel('./Database/제품등록정보20211015.xlsx', index=False)
+            self.settings.to_excel(self.db_file_nm, index=False)
             # import main
             # windowClass = main.WindowClass()
             # windowClass.check_insp_daily()
@@ -108,4 +109,11 @@ class SettingWindow(QDialog, setting_class):
         self.get_inspection()
 
     def open_database(self):
-        QFileDialog.getOpenFileName(self, '열기')
+        get_file_nm = QFileDialog.getOpenFileName(self, '열기')
+        print(f'Saving {get_file_nm[0]} as new Database')
+        settings = QSettings('Vitasoft', 'SalimProject')
+        settings.setValue('db_file', get_file_nm[0])
+        self.db_file_nm = get_file_nm[0]
+        self.__init__(self.db_file_nm)
+        self.show()
+

@@ -5,7 +5,7 @@ from multiprocessing import Process
 from playsound import playsound
 
 from PyQt5 import uic
-from PyQt5.QtCore import pyqtSlot, QThread, pyqtSignal, QTimer, QDateTime, QModelIndex, Qt
+from PyQt5.QtCore import pyqtSlot, QThread, pyqtSignal, QTimer, QDateTime, QModelIndex, Qt, QSettings
 from PyQt5.QtGui import QImage, QPixmap, QFont, QPalette, QBrush, QColor, QPainter
 from PyQt5.QtWidgets import *
 from glob import glob
@@ -172,6 +172,15 @@ class WindowClass(QMainWindow, form_class):
         self.db = Db()
         self.inspection_setting = self.db.get_product_inspections()
 
+        settings = QSettings('Vitasoft', 'SalimProject')
+        if settings.contains('db_file'):
+            print('Checking for database file in config')
+            get_file_nm = settings.value('db_file')
+        else:
+            get_file_nm = './Database/제품등록정보20211015.xlsx'
+            settings.setValue('db_file', get_file_nm)
+
+        self.setting_page = SettingWindow(get_file_nm)
         self.actionSettings.triggered.connect(self.show_setting_window)
 
         timer = QTimer(self)
@@ -444,33 +453,6 @@ class WindowClass(QMainWindow, form_class):
         print(f'print_lst ---> {print_lst}')
         return print_lst
 
-    def set_final_result(self):
-        inspection_table = self.inspection_table
-        row_cnt = inspection_table.rowCount()
-        result_items_lst = [inspection_table.item(row_idx, 4).text() for row_idx in
-                            range(1, row_cnt)]  # ocr 항목들 결과값들 list
-        final_result_text = Keywords.success.kor()
-        text = QTableWidgetItem()
-        text.setText(final_result_text)
-        font = QFont()
-        font.setFamily('나눔스퀘어_ac')
-        font.setPointSize(40)
-        font.setBold(True)
-        text.setFont(font)
-        text.setTextAlignment(Qt.AlignCenter)
-        brush = QBrush(Qt.blue)
-        if Keywords.error.kor() in result_items_lst:
-            final_result_text = Keywords.fail.kor()
-            text.setText(final_result_text)
-            brush = QBrush(Qt.red)
-        elif Keywords.match_fail.kor() in result_items_lst:
-            final_result_text = Keywords._pass.kor()
-            text.setText(final_result_text)
-            brush = QBrush(QColor(128, 128, 128))
-        text.setForeground(brush)
-        inspection_table.setItem(0, self.insp_tbl_init_col - 1, text)
-        return final_result_text
-
     def print_result(self, print_lst, barcode):
         # 리스트로 반환된 결과들을 length만큼 행을 만들어 출력한다
         for row_idx, row in enumerate(print_lst):
@@ -503,17 +485,6 @@ class WindowClass(QMainWindow, form_class):
                 text.setText(str(value))
                 error_cnt_table.setItem(idx, value_idx + 1, text)
 
-    def show_image(self, image_path, rot_angle):
-        opencv_rot_dict = {90: cv2.ROTATE_90_CLOCKWISE, 180: cv2.ROTATE_180, 270: cv2.ROTATE_90_COUNTERCLOCKWISE}
-        label_image = cv2.imread(image_path)
-        label_image = cv2.cvtColor(label_image, cv2.COLOR_BGR2RGB)
-        label_image = cv2.resize(label_image, (320, 320))
-        if rot_angle != 0:
-            label_image = cv2.rotate(label_image, opencv_rot_dict[rot_angle])
-        height, width, channel = label_image.shape
-        pixmap = QPixmap.fromImage(QImage(label_image.data, width, height, (channel * width), QImage.Format_RGB888))
-        self.camera.setPixmap(pixmap)
-
     def check_inspection(self, barcode):
         inspection_table = self.inspection_table
         inspections = self.inspection_setting
@@ -525,8 +496,45 @@ class WindowClass(QMainWindow, form_class):
                     color = Qt.white
                 item.setBackground(color)
 
+    def set_final_result(self):
+        inspection_table = self.inspection_table
+        result_items_lst = [inspection_table.item(row_idx, 4).text() for row_idx in
+                            range(1, inspection_table.rowCount())]  # ocr 항목들 결과값들 list
+
+        final_result_text = Keywords.success.kor()
+        text = QTableWidgetItem()
+        text.setText(final_result_text)
+        font = QFont()
+        font.setFamily('나눔스퀘어_ac')
+        font.setPointSize(40)
+        font.setBold(True)
+        text.setFont(font)
+        text.setTextAlignment(Qt.AlignCenter)
+        brush = QBrush(Qt.blue)
+        if Keywords.error.kor() in result_items_lst:
+            final_result_text = Keywords.fail.kor()
+            text.setText(final_result_text)
+            brush = QBrush(Qt.red)
+        elif Keywords.match_fail.kor() in result_items_lst:
+            final_result_text = Keywords._pass.kor()
+            text.setText(final_result_text)
+            brush = QBrush(QColor(128, 128, 128))
+        text.setForeground(brush)
+        inspection_table.setItem(0, self.insp_tbl_init_col - 1, text)
+        return final_result_text
+
+    def show_image(self, image_path, rot_angle):
+        opencv_rot_dict = {90: cv2.ROTATE_90_CLOCKWISE, 180: cv2.ROTATE_180, 270: cv2.ROTATE_90_COUNTERCLOCKWISE}
+        label_image = cv2.imread(image_path)
+        label_image = cv2.cvtColor(label_image, cv2.COLOR_BGR2RGB)
+        label_image = cv2.resize(label_image, (320, 320))
+        if rot_angle != 0:
+            label_image = cv2.rotate(label_image, opencv_rot_dict[rot_angle])
+        height, width, channel = label_image.shape
+        pixmap = QPixmap.fromImage(QImage(label_image.data, width, height, (channel * width), QImage.Format_RGB888))
+        self.camera.setPixmap(pixmap)
+
     def show_setting_window(self):
-        self.setting_page = SettingWindow()
         self.setting_page.show()
 
     # ★ 당일 검사 활성화/비활성화
