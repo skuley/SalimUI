@@ -85,8 +85,8 @@ class PdCumul:
         return self.pd_name
 
 class Db():
-    def __init__(self):
-        self.df = pd.read_excel('./Database/제품등록정보20211015.xlsx')
+    def __init__(self, db_file_name):
+        self.df = pd.read_excel(db_file_name)
         self.df = self.df[self.df['라벨제품명'].str.contains('운영중단') == False]
         self.df = self.df.fillna('')
 
@@ -169,16 +169,18 @@ class WindowClass(QMainWindow, form_class):
             '불합격': Cumul_Count.fail_cs
         }
 
-        self.db = Db()
-        self.inspection_setting = self.db.get_product_inspections()
-
         settings = QSettings('Vitasoft', 'SalimProject')
         if settings.contains('db_file'):
             print('Checking for database file in config')
             get_file_nm = settings.value('db_file')
+            print(f'Loading {get_file_nm} as database file')
         else:
             get_file_nm = './Database/제품등록정보20211015.xlsx'
             settings.setValue('db_file', get_file_nm)
+            print(f'Loading {get_file_nm} as initial database file')
+
+        self.db = Db(get_file_nm)
+        self.inspection_setting = self.db.get_product_inspections()
 
         self.setting_page = SettingWindow(get_file_nm)
         self.actionSettings.triggered.connect(self.show_setting_window)
@@ -487,6 +489,10 @@ class WindowClass(QMainWindow, form_class):
 
     def check_inspection(self, barcode):
         inspection_table = self.inspection_table
+        # settings = QSettings('Vitasoft', 'SalimProject')
+        # db_file_name = settings.value('db_file')
+        # self.db.__init__(db_file_name)
+        # TODO: 촬영 도중이나 프로그램이 실행 도중 검사 파일(DB파일)을 바꿀때 새로운 검사/pass를 적용해야할까?
         inspections = self.inspection_setting
         if barcode in inspections:
             for row_idx in range(inspection_table.rowCount()):

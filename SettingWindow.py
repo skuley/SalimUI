@@ -113,7 +113,6 @@ class SettingWindow(QDialog, setting_class):
         print(f'Saving {get_file_nm[0]} as new Database')
         settings = QSettings('Vitasoft', 'SalimProject')
         settings.setValue('db_file', get_file_nm[0])
-        self.db_file_nm = get_file_nm[0]
-        self.__init__(self.db_file_nm)
+        self.__init__(get_file_nm[0])
         self.show()
 
