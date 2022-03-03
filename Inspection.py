@@ -1,4 +1,5 @@
 from Keywords import Keywords
+
 class Inspection():
 
     def inspect_result(self, result):

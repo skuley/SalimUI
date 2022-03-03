@@ -90,3 +90,9 @@ class Keywords(Enum):
 
     def cumul_lst(self):
         return self.error_headers().pop(self.product_name)
+
+
+class Alarm(Enum):
+    warning = 1
+    danger = 5
+    error = 10
