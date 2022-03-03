@@ -13,7 +13,11 @@ class SettingWindow(QDialog, setting_class):
     def __init__(self, db_file_nm):
         super().__init__()
         # self.resize(1000, 700)
+        self.settings = QSettings('Vitasoft', 'SalimProject')
         self.db_file_nm = db_file_nm
+        if not db_file_nm:
+            self.settings.value('db_file')
+
         self.setupUi(self)
         self.setWindowTitle("설정")
         self.setFont(QFont('나눔스퀘어_ac', 12))
@@ -40,11 +44,11 @@ class SettingWindow(QDialog, setting_class):
         open.setText('열기')
         open.clicked.connect(self.open_database)
 
-        self.settings = pd.read_excel(db_file_nm)
-        # self.settings = pd.read_excel('제품등록정보20211015.xlsx', header=None)
-        # self.settings = pd.read_excel('제품등록정보20211015.xlsx', names=list(self.settings.iloc[1])).iloc[1:].reset_index(drop=True).fillna('')
+        self.db_file = pd.read_excel(db_file_nm)
+        # self.db_file = pd.read_excel('제품등록정보20211015.xlsx', header=None)
+        # self.db_file = pd.read_excel('제품등록정보20211015.xlsx', names=list(self.db_file.iloc[1])).iloc[1:].reset_index(drop=True).fillna('')
         self.insp_lst = ['ERP품목명', '제품명검사', '중량(입수)검사', '바코드검사', '인증마크검사', '인증정보검사']
-        self.setting_lst = self.settings[self.insp_lst].values.tolist()
+        self.setting_lst = self.db_file[self.insp_lst].values.tolist()
         self.setting_table_row_count = self.setting_table.rowCount()
         self.get_inspection()
 
@@ -95,9 +99,9 @@ class SettingWindow(QDialog, setting_class):
             row_lst.clear()
         table_lst.insert(0, self.insp_lst)
         save_df = pd.DataFrame(table_lst[1:], columns=table_lst[0])
-        self.settings[self.insp_lst] = save_df
+        self.db_file[self.insp_lst] = save_df
         try:
-            self.settings.to_excel(self.db_file_nm, index=False)
+            self.db_file.to_excel(self.db_file_nm, index=False)
             # import main
             # windowClass = main.WindowClass()
             # windowClass.check_insp_daily()
@@ -110,10 +114,10 @@ class SettingWindow(QDialog, setting_class):
 
     def open_database(self):
         get_file_nm = QFileDialog.getOpenFileName(self, '열기')
-        print(f'Saving {get_file_nm[0]} as new Database')
-        settings = QSettings('Vitasoft', 'SalimProject')
-        settings.setValue('db_file', get_file_nm[0])
-        self.db_file_nm = get_file_nm[0]
+        if get_file_nm[0]:
+            print(f'Saving {get_file_nm[0]} as new Database')
+            self.settings.setValue('db_file', get_file_nm[0])
+            self.db_file_nm = get_file_nm[0]
         self.__init__(self.db_file_nm)
         self.show()
 

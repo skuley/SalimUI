@@ -1,4 +1,6 @@
 from enum import Enum
+
+
 class Keywords(Enum):
     # 검사대상
     product_name = '제품명'
@@ -32,6 +34,14 @@ class Keywords(Enum):
     processed = '가공식품'
     carbon = '저탄소(LOW CARBON)'
 
+    # 검사 헤더
+    inspection_opt = '검사대상'
+    ocr = '인식결과'
+    db = '등록정보'
+    score = '싱크율'
+    result = '결과'
+    final_result = '종합판단'
+
     # 연속 / 누적 검사 결과
     success_cs = '합격(연속)'
     success_cu = '합격(누적)'
@@ -39,7 +49,7 @@ class Keywords(Enum):
     fail_cu = '불합격(누적)'
     pass_cs = '유보(연속)'
     pass_cu = '유보(누적)'
-    total = '총'
+    total = '총계'
 
     def kor(self):
         return self.value
@@ -47,13 +57,23 @@ class Keywords(Enum):
     def eng(self):
         return self.name
 
-    def insp_headers(self):
+    def vert_headers(self):
         return [
             self.product_name,
             self.weight,
             self.barcode,
             self.cert_mark,
             self.cert_result
+        ]
+
+    def inspection_headers(self):
+        return [
+            self.inspection_opt,
+            self.ocr,
+            self.db,
+            self.score,
+            self.result,
+            self.final_result
         ]
 
     def error_headers(self):

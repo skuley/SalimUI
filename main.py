@@ -1,7 +1,6 @@
 import os
 import sys
 import time
-from multiprocessing import Process
 from playsound import playsound
 
 from PyQt5 import uic
@@ -15,6 +14,7 @@ import requests
 # import Test_API
 from Keywords import Keywords
 from SettingWindow import SettingWindow
+from Inspection import Inspection
 import json
 import pandas as pd
 from enum import Enum, auto
@@ -24,13 +24,13 @@ form_class = uic.loadUiType("./Ui/save_main_ui_2.ui")[0]
 webcam_status = False
 stop_webcam_time = 3
 
-undetected_label_cnt = 0
 ocr_image = []
 root_path = 'A:/salim/detected_labels'
 # root_path = './Image'
 check_inspection_daily = {}
 prior_barcode = 0
 stacked_result = {}
+
 
 class Cumul_Count(Enum):
     success_cs = "합격"
@@ -43,6 +43,7 @@ class Cumul_Count(Enum):
 
     def __str__(self):
         return self.name
+
 
 class PdCumul:
     def __init__(self, pd_name):
@@ -84,9 +85,12 @@ class PdCumul:
     def product_name(self):
         return self.pd_name
 
+
 class Db():
     def __init__(self):
-        self.df = pd.read_excel('./Database/제품등록정보20211015.xlsx')
+        self.settings = QSettings('Vitasoft', 'SalimProject')
+        self.db_file = self.settings.value('db_file')
+        self.df = pd.read_excel(self.db_file)
         self.df = self.df[self.df['라벨제품명'].str.contains('운영중단') == False]
         self.df = self.df.fillna('')
 
@@ -152,28 +156,37 @@ class Camera(QThread):
                     self.label_cnt.emit(undetected_label_cnt)
                     self.result.emit(result)
 
-# class ErrorTblHeaders(QHeaderView):
 
+# class ErrorTblHeaders(QHeaderView):
 
 
 class WindowClass(QMainWindow, form_class):
     def __init__(self):
         super().__init__()
+
+        self.prior_barcode = 0
+
         self.setupUi(self)
         self.setWindowTitle("흙살림")
-        self.setFont(QFont('나눔스퀘어_ac', 12))
+        self.setFont(QFont('나눔스퀘어_ac', 20))
 
+        self.undetected_label_cnt = 0
+        self.inspection = Inspection()
         self.final_result_txt = {
             '합격': Cumul_Count.success_cs,
             '유보': Cumul_Count.pass_cs,
             '불합격': Cumul_Count.fail_cs
         }
-
-        self.db = Db()
-        self.inspection_setting = self.db.get_product_inspections()
+        self.alert_color = {
+            '6': QColor(246, 189, 192),
+            '7': QColor(241, 149, 155),
+            '8': QColor(240, 116, 112),
+            '9': QColor(234, 76, 70),
+            '10': QColor(220, 28, 19)
+        }
 
         settings = QSettings('Vitasoft', 'SalimProject')
-        if settings.contains('db_file'):
+        if settings.contains('db_file') and settings.value('db_file'):
             print('Checking for database file in config')
             get_file_nm = settings.value('db_file')
         else:
@@ -182,6 +195,9 @@ class WindowClass(QMainWindow, form_class):
 
         self.setting_page = SettingWindow(get_file_nm)
         self.actionSettings.triggered.connect(self.show_setting_window)
+
+        self.db = Db()
+        self.inspection_setting = self.db.get_product_inspections()
 
         timer = QTimer(self)
         timer.timeout.connect(self.show_time)
@@ -203,22 +219,23 @@ class WindowClass(QMainWindow, form_class):
         # 결과 출력하는 테이블 영역
         inspection_table = self.inspection_table
         self.reset_inspection_table()
-        insp_headers = list(Keywords.insp_headers(Keywords))
+        vert_headers = list(Keywords.vert_headers(Keywords))
         for row in range(5):
             inspection_table.insertRow(row)
-            inspection_table.setItem(row, 0, QTableWidgetItem(insp_headers[row].kor()))
+            inspection_table.setItem(row, 0, QTableWidgetItem(vert_headers[row].kor()))
         self.insp_tbl_init_row = self.inspection_table.rowCount()
         self.insp_tbl_init_col = self.inspection_table.columnCount()
-        inspection_table.setSpan(0, self.insp_tbl_init_col- 1, self.insp_tbl_init_row, self.insp_tbl_init_col -1)
+        inspection_table.setSpan(0, self.insp_tbl_init_col - 1, self.insp_tbl_init_row, self.insp_tbl_init_col - 1)
         inspection_table.cellClicked.connect(self.highlight_inspection)
 
         # 테이블(객체 오류 개수) 구역 error_cnt_table
         error_cnt_table = self.error_cnt_table
         font = error_cnt_table.font()
-        font.setPointSize(15)
-        error_cnt_table.setColumnWidth(0, QHeaderView.Stretch)
-        error_cnt_table.setFont(font)
+        # font.setPointSize(15)
+        # error_cnt_table.setFont(font)
+        # error_cnt_table.setColumnWidth(0, QHeaderView.Stretch)
         error_cnt_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        error_cnt_table.horizontalHeader().setMinimumHeight(35)
         error_cnt_table.setSelectionMode(QAbstractItemView.NoSelection)
         error_cnt_table.setAutoFillBackground(False)
         col = error_cnt_table.columnCount()
@@ -230,9 +247,7 @@ class WindowClass(QMainWindow, form_class):
             self.error_table_labels.append(header.kor())
         error_cnt_table.setHorizontalHeaderLabels(self.error_table_labels)
         error_cnt_table.horizontalHeader().setStyleSheet("::section {color: white; font-weight: bold; "
-                                                         "background-color: #ACE7FF;}")
-
-
+                                                         "background-color: #000030;}")
 
         # 카메라
         # self.th1 = Camera()
@@ -246,7 +261,6 @@ class WindowClass(QMainWindow, form_class):
         # for product_name in product_names:
         #     self.cumul_result[product_name] = {}
 
-
         # self.check_table_rowcnt = self.inspection_check_table.rowCount()
         # self.check_table_colcnt = self.inspection_check_table.columnCount()
         # self.reset_inspection_table()
@@ -254,9 +268,9 @@ class WindowClass(QMainWindow, form_class):
         # self.inspection_check_table.setAutoFillBackground(Qt.lightGray)
 
         results = [{'barcode': '2500000279935', 'cert_mark': ['organic'], 'cert_result': {
-                       '12100489': {'in_db': True, 'mark_status': 'success',
-                                    'name': {'db': '김영대', 'ocr_rslt': '김영대', 'score': 1.0},
-                                    'number': {'db': '12100489', 'ocr_rslt': '12100409', 'score': 0.875}}},
+            '12100489': {'in_db': True, 'mark_status': 'success',
+                         'name': {'db': '김영대', 'ocr_rslt': '김영대', 'score': 1.0},
+                         'number': {'db': '12100489', 'ocr_rslt': '12100409', 'score': 0.875}}},
                     'date_time': '02/15/2022, 15:35:24', 'label_id': 157,
                     'label_loc': '/mnt/vitasoft/salim/detected_labels/2500000279935/0157.png',
                     'product_name': {'name': '친환경 방울토마토', 'status': 'success'}, 'rot_angle': 180,
@@ -287,114 +301,14 @@ class WindowClass(QMainWindow, form_class):
             self.get_result(result)
 
         # 인식 실패한 라벨
-        self.undetected_label.setText(f'인식 실패한 라벨: {str(undetected_label_cnt)} 개')
-        self.undetected_label.setFont(QFont('나눔스퀘어_ac', 15, QFont.Bold))
+        # self.undetected_label.setText(f'인식 실패한 라벨: {str(self.undetected_label_cnt)} 개')
+        # self.undetected_label.setFont(QFont('나눔스퀘어_ac', 15, QFont.Bold))
 
-    def inspect_result(self, result):
-        return_dict = {'product_name': [], 'weight': [], 'barcode': [], 'cert_mark': [], 'cert_result': []}
-
-        for key, value in result.items():
-            cert_third_num = []
-            if key == 'product_name':
-                return_dict[key].append(value['name'])
-                return_dict[key].append(value['name'])
-                if value['status'] == 'success':
-                    return_dict[key].append('100%')
-                    return_dict[key].append('승인')
-
-            if key == 'weight':
-                return_dict[key].append(value['ocr_rslt'])
-                return_dict[key].append(value['db'])
-                return_dict[key].append(f"{round(value['score'] * 100)}%")
-                return_dict[key].append('승인')
-
-            if key == 'barcode':
-                return_dict[key].append(value)
-                return_dict[key].append(value)
-                return_dict[key].append('100%')
-                return_dict[key].append('승인')
-
-            if key == 'cert_mark':
-                if value:
-                    for mark in value:
-                        mark_lst = []
-                        mark_lst.append(Keywords[mark].kor())
-                        cert_numbers = [item['number']['ocr_rslt'] for item in result['cert_result'].values()]
-                        mark_lst.append(', '.join([number[2] for number in cert_numbers]))
-                        mark_status = [number['mark_status'] for number in result['cert_result'].values()]
-                        count = 0
-                        for status in mark_status:
-                            if 'success' == status:
-                                count += 1
-                        raw_score = 0.0
-
-                        if len(mark_status) > 0:
-                            raw_score = count / len(mark_status)
-
-                        score = f"{round(raw_score * 100)}%"
-                        mark_lst.append(score)
-
-                        if count == len(mark_status) and raw_score >= 0.9:
-                            mark_lst.append('승인')
-                        elif 'fail' in mark_status:
-                            mark_lst.append('오류')
-                        else:
-                            mark_lst.append('매칭실패')
-                        return_dict[key].append(mark_lst)
-                else:
-                    mark_lst = ['', '', '0.0', '매칭실패']
-                    return_dict[key].append(mark_lst)
-
-            if key == 'cert_result':
-                if value:
-                    for num_key, num_value in value.items():
-                        cert_lst = []
-                        if num_value['in_db']:
-                            cert_lst.append(f"{num_value['number']['ocr_rslt']} {num_value['name']['ocr_rslt']}")
-                            cert_lst.append(f"{num_value['number']['db']} {num_value['name']['db']}")
-                            raw_score = (num_value['name']['score'] + num_value['number']['score']) / 2.0
-                            cert_lst.append(f"{round(raw_score * 100)}%")
-                            result = '오류'
-                            if raw_score >= 0.9:
-                                result = '승인'
-                            cert_lst.append(result)
-                        else:
-                            name = ''
-                            number = ''
-                            if 'name' in num_value and 'number' in num_value:
-                                name = num_value['name']['ocr_rslt']
-                                number = num_value['number']['ocr_rslt']
-                            elif 'number' in num_value.keys():
-                                number = num_value['number']['ocr_rslt']
-                            elif 'name' in num_value.keys():
-                                name = num_value['name']['ocr_rslt']
-                            cert_lst.append(f"{name} {number}")
-                            cert_lst.append("조회 실패")
-                            cert_lst.append('0%')
-                            cert_lst.append('매칭실패')
-                        return_dict[key].append(cert_lst)
-                else:
-                    return_dict[key].append(['', '', '0%', '매칭실패'])
-
-        return return_dict
-
-    # def check_insp_daily(self):
-    #     global check_inspection_daily
-    #     check_lst = []
-    #     # TODO: DB class 만들어서 refactoring 하기
-    #     df = self.db.get_product_inspections()
-    #     df = df.replace('검사', 'O')
-    #     df = df.replace('pass', 'X')
-    #     for idx in range(len(df)):
-    #         check_lst.append(list(df.iloc[idx].to_dict().values()))
-    #     barcode_lst = list(df['바코드'].to_dict().values())
-    #     for idx, barcode in enumerate(barcode_lst):
-    #         check_inspection_daily[barcode] = check_lst[idx]
-
-    @pyqtSlot(int)
-    def undetected_label_cnt(self, label_cnt):
-        self.undetected_label.setText(f'인식 실패한 라벨: {label_cnt} 개')
-        self.undetected_label.setFont(QFont('나눔스퀘어_ac', 15, QFont.Bold))
+    # @pyqtSlot(int)
+    def add_undlbl_cnt(self):
+        self.undetected_label_cnt += 1
+        self.undetected_label.setText(f'인식 실패한 라벨: {self.undetected_label_cnt} 개')
+        # self.undetected_label.setFont(QFont('나눔스퀘어_ac', 15, QFont.Bold))
 
     def reset_inspection_table(self):
         # 결과 출력하는 테이블 리셋
@@ -402,23 +316,23 @@ class WindowClass(QMainWindow, form_class):
         inspection_table.clear()
         inspection_table.setRowCount(0)
         inspection_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        inspection_table.horizontalHeader().setMinimumHeight(35)
         inspection_table.setSelectionMode(QAbstractItemView.NoSelection)
         inspection_table.setAutoFillBackground(False)
-        self.inspection_table_labels = ['검사대상', '인식결과', '등록정보', '싱크율', '결과', '종합판단']
-        inspection_table.setHorizontalHeaderLabels(self.inspection_table_labels)
+        # self.inspection_table_labels = ['검사대상', '인식결과', '등록정보', '싱크율', '결과', '종합판단']
+        inspection_table.setHorizontalHeaderLabels([keyword.kor() for keyword in Keywords.inspection_headers(Keywords)])
         inspection_table.horizontalHeader().setStyleSheet("::section{color: white; font-weight:bold; "
-                                                          "background-color: #ACE7FF;}")
-
+                                                          "background-color: #000030;}")
 
     @pyqtSlot(dict)
     def get_result(self, result_dict):
-        global prior_barcode
+        self.db.__init__()
         inspection_table = self.inspection_table
         self.reset_inspection_table()
         print(f'result --> {result_dict}')
         if result_dict.get(Keywords.barcode.eng()) != 'unrecognized':
             barcode = int(result_dict[Keywords.barcode.eng()])
-            prior_barcode = barcode
+            self.prior_barcode = barcode
             # 이미지 불러오기
             # label_image = result_dict['label_loc']
             # from_path = '/mnt/vitasoft/salim/detected_labels'
@@ -431,11 +345,13 @@ class WindowClass(QMainWindow, form_class):
             self.camera.setPixmap(pixmap)
 
             # OCR 결과들을 하나하나 확인하여 결과/점수 매기기
-            result_dict = self.inspect_result(result_dict)
+            result_dict = self.inspection.inspect_result(result_dict)
 
             # ocr(result_dict)를 list로 반환하여 결과 출력하기
             print_lst = self.result_dict_to_lst(result_dict)
             self.print_result(print_lst, barcode)
+        else:
+            self.add_undlbl_cnt()
 
     def result_dict_to_lst(self, result_dict):
         # print(f'result_dict --> {result_dict}')
@@ -463,27 +379,48 @@ class WindowClass(QMainWindow, form_class):
                 if col_idx >= 3:
                     item.setTextAlignment(Qt.AlignCenter)
                 self.inspection_table.setItem(row_idx, col_idx, QTableWidgetItem(item))
-        self.inspection_table.setSpan(0, 5, row_idx+1, 5)
+        self.inspection_table.setSpan(0, 5, row_idx + 1, 5)
         self.print_cumul_result(barcode)
         self.check_inspection(barcode)
 
     def print_cumul_result(self, barcode):
         final_result_text = self.set_final_result()
         product_name = self.db.get_product_name_by_barcode(barcode)
+        # 누적 테이블에 없으면 새로 PdCumul 인스턴스 생성해서 cumu_result dict에 추가하기
         if product_name not in self.cumul_result:
             self.cumul_result[product_name] = PdCumul(product_name)
         self.cumul_result[product_name].add_result(self.final_result_txt[final_result_text])
 
         error_cnt_table = self.error_cnt_table
         error_cnt_table.setRowCount(0)
-        for idx, key in enumerate(self.cumul_result.keys()):
-            error_cnt_table.insertRow(idx)
-            error_cnt_table.setItem(idx, 0, QTableWidgetItem(key))
-            for value_idx, value in enumerate(self.cumul_result[key].rslt_dict().values()):
+        # for idx, key in enumerate(self.cumul_result.keys()):
+        #     error_cnt_table.insertRow(idx)
+        #     error_cnt_table.setItem(idx, 0, QTableWidgetItem(key))
+        #     for value_idx, value in enumerate(self.cumul_result[key].rslt_dict().values()):
+        #         text = QTableWidgetItem()
+        #         text.setTextAlignment(Qt.AlignCenter)
+        #         text.setText(str(value))
+        #         error_cnt_table.setItem(idx, value_idx + 1, text)
+
+        for row, key in enumerate(self.cumul_result.keys()):
+            error_cnt_table.insertRow(row)
+            error_cnt_table.setItem(row, 0, QTableWidgetItem(key))
+            rslt = self.cumul_result[key].rslt_dict()
+            for col, key in enumerate(rslt.keys()):
                 text = QTableWidgetItem()
                 text.setTextAlignment(Qt.AlignCenter)
-                text.setText(str(value))
-                error_cnt_table.setItem(idx, value_idx + 1, text)
+                text.setText(str(rslt[key]))
+                if key == Keywords.fail_cs.eng():
+                    if 5 < rslt[key] <= 10:
+                        text.setForeground(self.alert_color[str(rslt[key])])
+                    elif rslt[key] > 10:
+                        text.setForeground(self.alert_color['10'])
+
+                error_cnt_table.setItem(row, col + 1, text)
+
+        # error_cnt_table.resizeColumnsToContents()
+
+
 
     def check_inspection(self, barcode):
         inspection_table = self.inspection_table
@@ -514,7 +451,7 @@ class WindowClass(QMainWindow, form_class):
         if Keywords.error.kor() in result_items_lst:
             final_result_text = Keywords.fail.kor()
             text.setText(final_result_text)
-            brush = QBrush(Qt.red)
+            brush = QBrush(QColor(220, 28, 19))
         elif Keywords.match_fail.kor() in result_items_lst:
             final_result_text = Keywords._pass.kor()
             text.setText(final_result_text)
@@ -538,13 +475,13 @@ class WindowClass(QMainWindow, form_class):
         self.setting_page.show()
 
     # ★ 당일 검사 활성화/비활성화
-    def highlight_inspection(self, row, column):
+    def highlight_inspection(self, row_idx, column):
         inspection_table = self.inspection_table
         check_keywords = [Keywords.cert_mark.kor(), Keywords.cert_result.kor()]
         highlight_lst = []
         # TODO: 패스일경우 [***** 다시 리팩토링 하기 *****]
         if column == 0:
-            item = inspection_table.item(row, column)
+            item = inspection_table.item(row_idx, column)
             item_text = item.text().replace(' pass', '')
             if item_text in check_keywords:
                 same_keyword_rows = inspection_table.findItems(item.text(), Qt.MatchContains)
@@ -555,26 +492,20 @@ class WindowClass(QMainWindow, form_class):
 
             for item in highlight_lst:
                 if item.background() == Qt.gray:
-                    item.setText(f'{item_text}')
-                    item.setBackground(Qt.white)
+                    # item.setText(f'{item_text}')
+                    self.set_color_to_row(row_idx, Qt.white, item_text)
+                    # item.setBackground(Qt.white)
                 else:
-                    item.setText(f'{item_text} pass')
-                    item.setBackground(Qt.gray)
-        # self.set_inspection_setting()
+                    # item.setText(f'{item_text} pass')
+                    item_text += ' pass'
+                    # item.setBackground(Qt.gray)
+                    self.set_color_to_row(row_idx, Qt.gray, item_text)
 
-    def set_inspection_setting(self):
-        inspection_check_table = self.inspection_check_table
-        inspection_row_cnt = inspection_check_table.rowCount()
-
-        check_lst = []
-        for row in range(inspection_row_cnt):
-            check = 'O'
-            if row != 0:
-                item = inspection_check_table.item(row, 0)
-                if item.background().color() == Qt.gray:
-                    check = 'X'
-                check_lst.append(check)
-        self.inspection_setting[prior_barcode] = check_lst
+    def set_color_to_row(self, rowIndex, color, text):
+        for col in range(self.inspection_table.columnCount() - 1):
+            if col == 0:
+                self.inspection_table.setItem(rowIndex, col, QTableWidgetItem(text))
+            self.inspection_table.item(rowIndex, col).setBackground(color)
 
     def start_webcam(self):
         global webcam_status
@@ -585,17 +516,15 @@ class WindowClass(QMainWindow, form_class):
             question_str = '촬영을 시작 하시겠습니까?'
             api_stats = 'start'
             btn_text = '정지'
-            # if not check_inspection_daily:
-            #      self.check_insp_daily()
 
         reply = QMessageBox.question(self, 'Message', question_str, QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes)
 
         if reply == QMessageBox.Yes:
-            webcam_status = not webcam_status
             url = 'http://106.244.74.74:5001/' + api_stats
             response = requests.post(url)
             if response.status_code == 200:
                 print(f'---------------- api_{api_stats} ----------------')
+                webcam_status = not webcam_status
                 self.btn_start.setText(btn_text)
 
     def show_time(self):
