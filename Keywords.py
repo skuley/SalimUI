@@ -1,6 +1,5 @@
 from enum import Enum
-
-
+from playsound import playsound
 class Keywords(Enum):
     # 검사대상
     product_name = '제품명'

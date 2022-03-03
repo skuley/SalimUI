@@ -1,4 +1,16 @@
 from Keywords import Keywords
+from enum import Enum
+
+
+class MarkStatus(Enum):
+    success = "success"
+    mark_number_error = "mark and producer number doesn\'t match"
+    mark_number_check = "mark and producer number should be checked"
+    mark_not_found = "mark not found"
+
+    def __str__(self):
+        return f"{self.name}"  # self.value
+
 
 class Inspection():
 
@@ -34,21 +46,21 @@ class Inspection():
                         cert_numbers = [item['number']['ocr_rslt'] for item in result['cert_result'].values()]
                         mark_lst.append(', '.join([number[2] for number in cert_numbers]))
                         mark_status = [number['mark_status'] for number in result['cert_result'].values()]
-                        count = 0
+                        correct_cnt = 0
                         for status in mark_status:
-                            if 'success' == status:
-                                count += 1
+                            if MarkStatus.success.value == status or MarkStatus.mark_number_check.value == status:
+                                correct_cnt += 1
                         raw_score = 0.0
 
                         if len(mark_status) > 0:
-                            raw_score = count / len(mark_status)
+                            raw_score = correct_cnt / len(mark_status)
 
                         score = f"{round(raw_score * 100)}%"
                         mark_lst.append(score)
 
-                        if count == len(mark_status) and raw_score >= 0.9:
+                        if correct_cnt == len(mark_status) and raw_score >= 0.9:
                             mark_lst.append('승인')
-                        elif 'fail' in mark_status:
+                        elif MarkStatus.mark_number_error.value in mark_status:
                             mark_lst.append('오류')
                         else:
                             mark_lst.append('매칭실패')

@@ -1,12 +1,14 @@
 import os
 import sys
 import time
+from collections import OrderedDict
+
 from playsound import playsound
 
 from PyQt5 import uic
 from PyQt5.QtCore import pyqtSlot, QThread, pyqtSignal, QTimer, QDateTime, QModelIndex, Qt, QSettings
 from PyQt5.QtGui import QImage, QPixmap, QFont, QPalette, QBrush, QColor, QPainter
-from PyQt5.QtWidgets import *
+from PyQt5.QtWidgets import QMainWindow, QTableWidgetItem, QHeaderView, QAbstractItemView, QApplication, QMessageBox
 from glob import glob
 import cv2
 import requests
@@ -26,8 +28,9 @@ webcam_status = False
 stop_webcam_time = 3
 ocr_image = []
 root_path = 'A:/salim/detected_labels'
-
-
+warning_sound = './Sound/beep.mp3'
+danger_sound = './Sound/bleep.mp3'
+error_sound = './Sound/error_2.mp3'
 # root_path = './Image'
 
 
@@ -249,8 +252,6 @@ class WindowClass(QMainWindow, form_class):
         error_cnt_table.horizontalHeader().setMinimumHeight(35)
         error_cnt_table.setSelectionMode(QAbstractItemView.NoSelection)
         error_cnt_table.setAutoFillBackground(False)
-        col = error_cnt_table.columnCount()
-        row = error_cnt_table.rowCount()
         # error_cnt_table.setHorizontalHeader(['연속', '누적'])
         error_headers = Keywords.error_headers(Keywords)
         self.error_table_labels = []
@@ -267,12 +268,11 @@ class WindowClass(QMainWindow, form_class):
         # self.th1.start()
 
         # self.th1.changePixmap.connect(self.set_image)
-        self.cumul_result = {}
-        # product_names = self.db.get_product_names()
+        self.cumul_result = OrderedDict()
         # for product_name in product_names:
         #     self.cumul_result[product_name] = {}
 
-        results = [{'barcode': '2500000279935', 'cert_mark': ['organic'], 'cert_result': {
+        results = [{'barcode': '2500000289552', 'cert_mark': ['organic'], 'cert_result': {
             '12100489': {'in_db': True, 'mark_status': 'success',
                          'name': {'db': '김영대', 'ocr_rslt': '김영대', 'score': 1.0},
                          'number': {'db': '12100489', 'ocr_rslt': '12100409', 'score': 0.875}}},
@@ -280,19 +280,69 @@ class WindowClass(QMainWindow, form_class):
                     'label_loc': '/mnt/vitasoft/salim/detected_labels/2500000289552/09.png',
                     'product_name': {'name': '친환경 방울토마토', 'status': 'success'}, 'rot_angle': 270,
                     'weight': {'db': '600g', 'ocr_rslt': '600g', 'score': 1.0, 'status': 'success'}},
-                   {'barcode': '2500000252983', 'cert_mark': ['organic'], 'cert_result': {
-                       '04829818': {'in_db': False, 'mark_status': 'success',
+                   {'barcode': '2500000289552', 'cert_mark': ['organic'], 'cert_result': {
+                       '04329818': {'in_db': False, 'mark_status': 'mark and producer number should be checked',
+                                    'number': {'db': '04329818', 'ocr_rslt': '04329818'}},
+                       '12100489': {'in_db': True, 'mark_status': 'success',
+                                    'name': {'db': '김영대', 'ocr_rslt': '김영대', 'score': 1.0},
+                                    'number': {'db': '12100489', 'ocr_rslt': '12100489', 'score': 1.0}}},
+                    'date_time': '02/15/2022, 16:40:53', 'label_id': 562,
+                    'label_loc': '/mnt/vitasoft/salim/detected_labels/2500000289552/09.png',
+                    'product_name': {'name': '친환경 대추방울토마토', 'status': 'success'}, 'rot_angle': 270,
+                    'weight': {'db': '600g', 'ocr_rslt': '600g', 'score': 1.0, 'status': 'success'}},
+                   {'barcode': '2500000279935', 'cert_mark': ['organic'], 'cert_result': {
+                       '04829818': {'in_db': False, 'mark_status': 'mark and producer number doesn\'t match',
                                     'number': {'db': '04829818', 'ocr_rslt': '04829818'}},
-                       '04829811': {'in_db': False, 'mark_status': 'success',
-                                    'number': {'db': '04829818', 'ocr_rslt': '04829811'}},
-                       '04829813': {'in_db': False, 'mark_status': 'success',
-                                    'number': {'db': '04829818', 'ocr_rslt': '04829813'}},
-                       '04829814': {'in_db': False, 'mark_status': 'success',
-                                    'number': {'db': '04829818', 'ocr_rslt': '04829814'}},
-                       '04829815': {'in_db': False, 'mark_status': 'success',
-                                    'number': {'db': '04829818', 'ocr_rslt': '04829815'}},
-                       '04829816': {'in_db': False, 'mark_status': 'success',
-                                    'number': {'db': '04829818', 'ocr_rslt': '04829816'}},
+                       '12100489': {'in_db': True, 'mark_status': 'success',
+                                    'name': {'db': '김영대', 'ocr_rslt': '김영대', 'score': 1.0},
+                                    'number': {'db': '12100489', 'ocr_rslt': '12100489', 'score': 1.0}}},
+                    'date_time': '02/15/2022, 16:40:53', 'label_id': 562,
+                    'label_loc': '/mnt/vitasoft/salim/detected_labels/2500000289552/09.png',
+                    'product_name': {'name': '친환경 대추방울토마토', 'status': 'success'}, 'rot_angle': 270,
+                    'weight': {'db': '600g', 'ocr_rslt': '600g', 'score': 1.0, 'status': 'success'}},
+                   {'barcode': '2500000279935', 'cert_mark': ['organic'], 'cert_result': {
+                       '04829818': {'in_db': False, 'mark_status': 'mark and producer number doesn\'t match',
+                                    'number': {'db': '04829818', 'ocr_rslt': '04829818'}},
+                       '12100489': {'in_db': True, 'mark_status': 'success',
+                                    'name': {'db': '김영대', 'ocr_rslt': '김영대', 'score': 1.0},
+                                    'number': {'db': '12100489', 'ocr_rslt': '12100489', 'score': 1.0}}},
+                    'date_time': '02/15/2022, 16:40:53', 'label_id': 562,
+                    'label_loc': '/mnt/vitasoft/salim/detected_labels/2500000289552/09.png',
+                    'product_name': {'name': '친환경 대추방울토마토', 'status': 'success'}, 'rot_angle': 270,
+                    'weight': {'db': '600g', 'ocr_rslt': '600g', 'score': 1.0, 'status': 'success'}},
+                   {'barcode': '2500000279935', 'cert_mark': ['organic'], 'cert_result': {
+                       '04829818': {'in_db': False, 'mark_status': 'mark and producer number doesn\'t match',
+                                    'number': {'db': '04829818', 'ocr_rslt': '04829818'}},
+                       '12100489': {'in_db': True, 'mark_status': 'success',
+                                    'name': {'db': '김영대', 'ocr_rslt': '김영대', 'score': 1.0},
+                                    'number': {'db': '12100489', 'ocr_rslt': '12100489', 'score': 1.0}}},
+                    'date_time': '02/15/2022, 16:40:53', 'label_id': 562,
+                    'label_loc': '/mnt/vitasoft/salim/detected_labels/2500000289552/09.png',
+                    'product_name': {'name': '친환경 대추방울토마토', 'status': 'success'}, 'rot_angle': 270,
+                    'weight': {'db': '600g', 'ocr_rslt': '600g', 'score': 1.0, 'status': 'success'}},
+                   {'barcode': '2500000279935', 'cert_mark': ['organic'], 'cert_result': {
+                       '04829818': {'in_db': False, 'mark_status': 'mark and producer number doesn\'t match',
+                                    'number': {'db': '04829818', 'ocr_rslt': '04829818'}},
+                       '12100489': {'in_db': True, 'mark_status': 'success',
+                                    'name': {'db': '김영대', 'ocr_rslt': '김영대', 'score': 1.0},
+                                    'number': {'db': '12100489', 'ocr_rslt': '12100489', 'score': 1.0}}},
+                    'date_time': '02/15/2022, 16:40:53', 'label_id': 562,
+                    'label_loc': '/mnt/vitasoft/salim/detected_labels/2500000289552/09.png',
+                    'product_name': {'name': '친환경 대추방울토마토', 'status': 'success'}, 'rot_angle': 270,
+                    'weight': {'db': '600g', 'ocr_rslt': '600g', 'score': 1.0, 'status': 'success'}},
+                   {'barcode': '2500000279935', 'cert_mark': ['organic'], 'cert_result': {
+                       '04829818': {'in_db': False, 'mark_status': 'mark and producer number doesn\'t match',
+                                    'number': {'db': '04829818', 'ocr_rslt': '04829818'}},
+                       '12100489': {'in_db': True, 'mark_status': 'success',
+                                    'name': {'db': '김영대', 'ocr_rslt': '김영대', 'score': 1.0},
+                                    'number': {'db': '12100489', 'ocr_rslt': '12100489', 'score': 1.0}}},
+                    'date_time': '02/15/2022, 16:40:53', 'label_id': 562,
+                    'label_loc': '/mnt/vitasoft/salim/detected_labels/2500000289552/09.png',
+                    'product_name': {'name': '친환경 대추방울토마토', 'status': 'success'}, 'rot_angle': 270,
+                    'weight': {'db': '600g', 'ocr_rslt': '600g', 'score': 1.0, 'status': 'success'}},
+                   {'barcode': '2500000279935', 'cert_mark': ['organic'], 'cert_result': {
+                       '04829818': {'in_db': False, 'mark_status': 'mark and producer number doesn\'t match',
+                                    'number': {'db': '04829818', 'ocr_rslt': '04829818'}},
                        '12100489': {'in_db': True, 'mark_status': 'success',
                                     'name': {'db': '김영대', 'ocr_rslt': '김영대', 'score': 1.0},
                                     'number': {'db': '12100489', 'ocr_rslt': '12100489', 'score': 1.0}}},
@@ -320,7 +370,6 @@ class WindowClass(QMainWindow, form_class):
         inspection_table.horizontalHeader().setMinimumHeight(35)
         inspection_table.setSelectionMode(QAbstractItemView.NoSelection)
         inspection_table.setAutoFillBackground(False)
-        # self.inspection_table_labels = ['검사대상', '인식결과', '등록정보', '싱크율', '결과', '종합판단']
         inspection_table.setHorizontalHeaderLabels([keyword.kor() for keyword in Keywords.inspection_headers(Keywords)])
         inspection_table.horizontalHeader().setStyleSheet("::section{color: white; font-weight:bold; "
                                                           "background-color: #000030;}")
@@ -328,7 +377,6 @@ class WindowClass(QMainWindow, form_class):
     @pyqtSlot(dict)
     def get_result(self, result_dict):
         self.db.__init__()
-        inspection_table = self.inspection_table
         self.reset_inspection_table()
         print(f'result --> {result_dict}')
         if result_dict.get(Keywords.barcode.eng()) != 'unrecognized':
@@ -363,7 +411,12 @@ class WindowClass(QMainWindow, form_class):
             self.check_inspection(barcode)
 
             # 최종 결과 --> 합격, 불합격, 유보
-            self.print_final_result()
+            result_items_lst = self.result_after_inspection()
+            final_result, brush = self.get_final_result(result_items_lst)
+            # result_items_lst = [inspection_table.item(row_idx, 4).text() for row_idx in
+            #                     range(inspection_table.rowCount())]  # ocr 항목들 결과값들 list
+            self.print_final_result(final_result, brush)
+
 
             '''
                 알람 띄우기
@@ -375,7 +428,11 @@ class WindowClass(QMainWindow, form_class):
             '''
 
             # 에러 테이블 출력
-            self.error_result(barcode)
+            self.error_result(barcode, final_result)
+
+            # 알람 울리기
+            self.set_alarm(barcode)
+
         else:
             self.add_undlbl_cnt()
 
@@ -389,7 +446,7 @@ class WindowClass(QMainWindow, form_class):
                 if col_idx >= 3:
                     item.setTextAlignment(Qt.AlignCenter)
                 self.inspection_table.setItem(row_idx, col_idx, QTableWidgetItem(item))
-        self.inspection_table.setSpan(0, 5, row_idx + 1, 5)
+        self.inspection_table.setSpan(0, 5, len(print_lst) + 1, 5)
 
     def check_inspection(self, barcode):
         inspection_table = self.inspection_table
@@ -406,15 +463,9 @@ class WindowClass(QMainWindow, form_class):
                 self.set_color_to_row(row_idx, color)
 
     # 최종 결과 --> 합격, 불합격, 유보
-    def print_final_result(self):
+    def print_final_result(self,result_text, brush):
         inspection_table = self.inspection_table
-        result_items_lst = [inspection_table.item(row_idx, 4).text() for row_idx in
-                            range(inspection_table.rowCount())]  # ocr 항목들 결과값들 list
-
-        result_text, brush = self.check_final_result(result_items_lst)
-        final_result_text = Keywords.success.kor()
         text = QTableWidgetItem()
-        text.setText(final_result_text)
         font = QFont()
         font.setFamily('나눔스퀘어_ac')
         font.setPointSize(40)
@@ -425,65 +476,80 @@ class WindowClass(QMainWindow, form_class):
         text.setForeground(brush)
         inspection_table.setItem(0, self.insp_tbl_init_col - 1, text)
 
-    def error_result(self, barcode):
+    def error_result(self, barcode, final_result_text):
+        error_cnt_table = self.error_cnt_table
+        error_cnt_table.setRowCount(0)
         # 검사 / pass 로 걸러진 최종 결과
-        final_result_text = self.set_alert()
         product_name = self.db.get_product_name_by_barcode(barcode)
         # 누적 테이블에 없으면 새로 PdCumul 인스턴스 생성해서 cumu_result dict에 추가하기
         if product_name not in self.cumul_result:
-            self.cumul_result[product_name] = PdCumul(product_name)
-        self.cumul_result[product_name].add_result(self.final_result_txt[final_result_text])
+            rslt_dict = {}
+            rslt_dict['alarm'] = True
+            rslt_dict['results'] = PdCumul(product_name)
+            self.cumul_result[product_name] = rslt_dict
+            self.cumul_result.move_to_end(product_name, False)
 
-        error_cnt_table = self.error_cnt_table
-        error_cnt_table.setRowCount(0)
-        for row, key in enumerate(self.cumul_result.keys()):
+        for row, pname in enumerate(self.cumul_result.keys()):
             error_cnt_table.insertRow(row)
-            error_cnt_table.setItem(row, 0, QTableWidgetItem(key))
-            rslt = self.cumul_result[key].rslt_dict()
+            error_cnt_table.setItem(row, 0, QTableWidgetItem(pname))
+            cumul_class = self.cumul_result[pname]['results']  # PdCumul class
+            cumul_class.add_result(self.final_result_txt[final_result_text])
+            rslt = cumul_class.rslt_dict()
+            # rslt = pd_cumul.rslt_dict()
             for col, key in enumerate(rslt.keys()):
                 text = QTableWidgetItem()
                 text.setTextAlignment(Qt.AlignCenter)
                 text.setText(str(rslt[key]))
                 if key == Keywords.fail_cs.eng():
-                    if 5 < rslt[key] <= 10:
+                    if Alarm.danger.value < rslt[key] <= Alarm.error.value:
                         text.setForeground(self.alert_color[str(rslt[key])])
-                    elif rslt[key] > 10:
-                        text.setForeground(self.alert_color['10'])
+                    elif rslt[key] > Alarm.error.value:
+                        text.setForeground(self.alert_color[str(Alarm.error.value)])
 
                 error_cnt_table.setItem(row, col + 1, text)
 
-    def set_alert(self):
+    def result_after_inspection(self):
         inspection_table = self.inspection_table
-        alarm_lst = []
-        final_result = ''
+        lst = []
         for row_idx in range(inspection_table.rowCount()):
             item = inspection_table.item(row_idx, 4)
             item_background = item.background()
             item_text = item.text()
             if item_background == Qt.white:
-                alarm_lst.append(item_text)
+                lst.append(item_text)
+        return lst
 
-        if alarm_lst:
-            final_result, _ = self.check_final_result(alarm_lst)
-            # TODO : 여기에 알람 울리기
-
-        return final_result
-
-    def check_final_result(self, result_lst):
+    def get_final_result(self, result_lst):
         final_result = Keywords.success.kor()
         brush = QBrush(Qt.blue)
         if Keywords.error.kor() in result_lst:
             final_result = Keywords.fail.kor()
             brush = QBrush(QColor(220, 28, 19))
         elif Keywords.match_fail.kor() in result_lst:
-            final_result = Keywords.pass_inspect.kor()
+            final_result = Keywords._pass.kor()
             brush = QBrush(QColor(128, 128, 128))
         return final_result, brush
 
+    def set_alarm(self, barcode):
+        product_name = self.db.get_product_name_by_barcode(barcode)
+        alarm_status = self.cumul_result[product_name]['alarm']
+        cumul_rslt = self.cumul_result[product_name]['results'].rslt_dict()
+        fail_cs = cumul_rslt[Keywords.fail_cs.eng()]
+        if fail_cs > 0 and alarm_status:
+            if fail_cs % Alarm.danger.value == 0 or fail_cs % Alarm.error.value == 0:
+                self.show_alarm_msg(fail_cs, product_name)
+            else:
+                playsound(warning_sound, True)
+
+    def show_alarm_msg(self, fail_cs, product_name):
+        # if self.cumul_result[product_name].
+        print('show alarm msg box')
+        pass
+
     def show_image(self, image_path, rot_angle):
         from_path = '/mnt/vitasoft/salim/detected_labels'
-        label_image = image_path.replace(from_path, root_path)
-        print(label_image)
+        image_path = image_path.replace(from_path, root_path)
+        print(image_path)
         opencv_rot_dict = {90: cv2.ROTATE_90_CLOCKWISE, 180: cv2.ROTATE_180, 270: cv2.ROTATE_90_COUNTERCLOCKWISE}
         label_image = cv2.imread(image_path)
         label_image = cv2.cvtColor(label_image, cv2.COLOR_BGR2RGB)
