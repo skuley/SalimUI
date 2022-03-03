@@ -28,9 +28,13 @@ webcam_status = False
 stop_webcam_time = 3
 ocr_image = []
 root_path = 'A:/salim/detected_labels'
-warning_sound = './Sound/beep.mp3'
-danger_sound = './Sound/bleep.mp3'
-error_sound = './Sound/error_2.mp3'
+# warning_sound = './Sound/beep.mp3'
+# warning_sound = './Sound/beep.mp3'
+# danger_sound = './Sound/bleep.mp3'
+# error_sound = './Sound/error_2.mp3'
+warning_sound = './Sound/alert.MP3'
+danger_sound = './Sound/alert.MP3'
+error_sound = './Sound/alert.MP3'
 # root_path = './Image'
 
 
@@ -170,7 +174,7 @@ def dictlst_to_lst(result_dict):
         else:
             value.insert(0, Keywords[key].kor())
             print_lst.append(value)
-    print(f'print_lst ---> {print_lst}')
+    # print(f'print_lst ---> {print_lst}')
     return print_lst
 
 
@@ -201,7 +205,7 @@ class WindowClass(QMainWindow, form_class):
 
         settings = QSettings('Vitasoft', 'SalimProject')
         if settings.contains('db_file') and settings.value('db_file'):
-            print('Checking for database file in config')
+            # print('Checking for database file in config')
             get_file_nm = settings.value('db_file')
         else:
             get_file_nm = './Database/제품등록정보20211015.xlsx'
@@ -378,14 +382,17 @@ class WindowClass(QMainWindow, form_class):
     def get_result(self, result_dict):
         self.db.__init__()
         self.reset_inspection_table()
-        print(f'result --> {result_dict}')
+        # print(f'result --> {result_dict}')
         if result_dict.get(Keywords.barcode.eng()) != 'unrecognized':
             barcode = int(result_dict[Keywords.barcode.eng()])
             self.prior_barcode = barcode
 
             # 이미지 불러오기
-            label_image = result_dict['label_loc']
-            self.show_image(label_image, result_dict['rot_angle'])
+            # label_image = result_dict['label_loc']
+            rot_angle = result_dict['rot_angle']
+            label_image = './Image/default.jpg'
+            rot_angle = 0
+            self.show_image(label_image, rot_angle)
 
             '''
                 OCR 결과들을 하나하나 확인하여 결과/점수 매기기
@@ -477,6 +484,7 @@ class WindowClass(QMainWindow, form_class):
         inspection_table.setItem(0, self.insp_tbl_init_col - 1, text)
 
     def error_result(self, barcode, final_result_text):
+        print(final_result_text)
         error_cnt_table = self.error_cnt_table
         error_cnt_table.setRowCount(0)
         # 검사 / pass 로 걸러진 최종 결과
@@ -487,15 +495,15 @@ class WindowClass(QMainWindow, form_class):
             rslt_dict['alarm'] = True
             rslt_dict['results'] = PdCumul(product_name)
             self.cumul_result[product_name] = rslt_dict
-            self.cumul_result.move_to_end(product_name, False)
+        pd_class = self.cumul_result[product_name]['results']
+        pd_class.add_result(self.final_result_txt[final_result_text])
+        self.cumul_result.move_to_end(product_name, False)
 
-        for row, pname in enumerate(self.cumul_result.keys()):
-            error_cnt_table.insertRow(row)
-            error_cnt_table.setItem(row, 0, QTableWidgetItem(pname))
-            cumul_class = self.cumul_result[pname]['results']  # PdCumul class
-            cumul_class.add_result(self.final_result_txt[final_result_text])
+        for row, key in enumerate(self.cumul_result.keys()):
+            cumul_class = self.cumul_result[key]['results']  # PdCumul class
             rslt = cumul_class.rslt_dict()
-            # rslt = pd_cumul.rslt_dict()
+            error_cnt_table.insertRow(row)
+            error_cnt_table.setItem(row, 0, QTableWidgetItem(product_name))
             for col, key in enumerate(rslt.keys()):
                 text = QTableWidgetItem()
                 text.setTextAlignment(Qt.AlignCenter)
@@ -539,17 +547,19 @@ class WindowClass(QMainWindow, form_class):
             if fail_cs % Alarm.danger.value == 0 or fail_cs % Alarm.error.value == 0:
                 self.show_alarm_msg(fail_cs, product_name)
             else:
-                playsound(warning_sound, True)
+                # playsound(warning_sound, True)
+                # print('alert.mp3')
+                pass
 
     def show_alarm_msg(self, fail_cs, product_name):
         # if self.cumul_result[product_name].
-        print('show alarm msg box')
+        # print('show alarm msg box')
         pass
 
     def show_image(self, image_path, rot_angle):
         from_path = '/mnt/vitasoft/salim/detected_labels'
         image_path = image_path.replace(from_path, root_path)
-        print(image_path)
+        # print(image_path)
         opencv_rot_dict = {90: cv2.ROTATE_90_CLOCKWISE, 180: cv2.ROTATE_180, 270: cv2.ROTATE_90_COUNTERCLOCKWISE}
         label_image = cv2.imread(image_path)
         label_image = cv2.cvtColor(label_image, cv2.COLOR_BGR2RGB)
