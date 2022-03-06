@@ -5,10 +5,11 @@ from PyQt5.QtCore import pyqtSlot, QThread, pyqtSignal, QTimer, QDateTime, QMode
 from PyQt5.QtWidgets import QMainWindow, QTableWidgetItem, QHeaderView, QAbstractItemView, QApplication, QMessageBox, \
     QDialog, QDialogButtonBox
 import time
-import threading
+import pygame
 from playsound import playsound
+from multiprocessing import Process
+import threading
 
-play_status = True
 
 class Camera(QThread):
     cnt = pyqtSignal(int)
@@ -22,43 +23,61 @@ class Camera(QThread):
             self.count += 1
             self.cnt.emit(self.count)
             time.sleep(1)
+            if self.count > 20:
+                self.count = 0
 
-form_class = uic.loadUiType("./Ui/test.ui")[0]
+
+form_class = uic.loadUiType("./Ui/test5.ui")[0]
 alert_ui = uic.loadUiType("./Ui/alert.ui")[0]
 
 
-class PlayAlarm(QThread):
-    def __init__(self, alarm_type):
-        super().__init__()
-        self.alarm_type = alarm_type
-
-    def run(self):
-        if self.alarm_type == 5:
-            playsound('./Sound/alert.MP3', True)
-        else:
-            while True:
-                playsound('./Sound/alert.MP3', True)
-
-    def kill(self):
-        self.kill()
-
-
 class Alert(QDialog, alert_ui):
-    def __init__(self, alarm_type):
+    def __init__(self):
         super().__init__()
         self.setupUi(self)
-        if alarm_type != 0:
-            self.play_alarm = PlayAlarm(alarm_type)
-            self.play_alarm.start()
 
-        ok = self.buttonBox.button(QDialogButtonBox.Ok)
-        ok.setText('확인')
-        ok.clicked.connect(self.set_off_alarm)
 
-    def set_off_alarm(self):
-        global play_status
-        self.play_alarm.kill()
-        play_status = False
+class PlaySound(QThread):
+    open_dialog = pyqtSignal(bool)
+    error_cnt = 0
+    play_status = True
+
+    def __init__(self):
+        super().__init__()
+        self.cnt = 0
+        pygame.init()
+        # pygame.mixer.set_num_channels(1)
+        sd_dict = {}
+        sd_dict['section1'] = pygame.mixer.Sound(file='./Sound/alert.MP3')
+        sd_dict['section2'] = pygame.mixer.Sound(file='./Sound/alert.MP3')
+        sd_dict['section3'] = pygame.mixer.Sound(file='./Sound/error.MP3')
+        self.sound = sd_dict
+
+    def run(self):
+        cnt = 0
+        while True:
+            if self.play_status:
+                if cnt != self.error_cnt:
+                    pygame.mixer.stop()
+                    cnt = self.error_cnt
+                    alarm = 'section1'
+                    loop = 0
+                    if 5 <= self.error_cnt < 10:
+                        alarm = 'section2'
+                    elif 10 <= self.error_cnt:
+                        alarm = 'section3'
+                        self.open_dialog.emit(True)
+                        loop = -1
+
+                    # sound = pygame.mixer.Sound(alarm)
+                    self.sound[alarm].play(loop)
+                    print(cnt, alarm)
+
+    def stop(self):
+        pygame.mixer.stop()
+        self.error_cnt = 0
+
+
 
 class WindowClass(QMainWindow, form_class):
     def __init__(self):
@@ -69,26 +88,40 @@ class WindowClass(QMainWindow, form_class):
         self.th1.start()
         self.th1.cnt.connect(self.show_tbl)
 
+        self.th2 = PlaySound()
+        self.th2.open_dialog.connect(self.show_dialog)
+        self.th2.start()
+
         self.warning = 5
         self.error = 10
 
-        self.alert_dialog = Alert(0)
+        self.alert_dialog = Alert()
+        ok = self.alert_dialog.buttonBox.button(QDialogButtonBox.Ok)
+        ok.setText('확인')
+        ok.clicked.connect(self.set_off_alarm)
+
+    def show_dialog(self):
+        self.th2.play_status = False
+        self.alert_dialog.show()
+
+    def set_off_alarm(self):
+        self.th2.stop()
+        self.th2.cnt = 0
+        # self.th2.play_status = False
 
     @pyqtSlot(int)
     def show_tbl(self, cnt):
-        global play_status
         tableWidget = self.table
         tableWidget.setItem(0, 0, QTableWidgetItem(str(cnt)))
+        if cnt == 1:
+            self.th2.play_status=True
 
-        if play_status:
-            if cnt % self.warning == 0 or cnt % self.error == 0:
-                # QMessageBox.critical(self,'Critical Title','Critical Message')
-                self.alert_dialog.__init__(self.warning)
-                self.alert_dialog.show()
-                # self.warning_status = False
+        self.th2.error_cnt = cnt
+        # self.th2.play_status = True
 
 
-        print(cnt)
+
+
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
