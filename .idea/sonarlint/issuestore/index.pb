@@ -9,3 +9,5 @@ I
 Sound/error_sound_test.py,3\7\3703a185fee9b39eb09795ccabdbecc0698cbd8b
 B
 Ui/save_main_ui.ui,3\3\33c1f137bfecb6ae05d5f16d88407ca3ff675182
+S
+#.idea/sonarlint/issuestore/index.pb,9\f\9fe84ebb15faf917b7def6236dba604453cc61e0
