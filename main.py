@@ -2,22 +2,27 @@ import os
 import sys
 import time
 from collections import OrderedDict
+import logging
+
 
 from playsound import playsound
 
 from PyQt5 import uic
 from PyQt5.QtCore import pyqtSlot, QThread, pyqtSignal, QTimer, QDateTime, QModelIndex, Qt, QSettings
-from PyQt5.QtGui import QImage, QPixmap, QFont, QPalette, QBrush, QColor, QPainter
+from PyQt5.QtGui import QImage, QPixmap, QFont, QPalette, QBrush, QColor, QPainter, QIcon
 from PyQt5.QtWidgets import QMainWindow, QTableWidgetItem, QHeaderView, QAbstractItemView, QApplication, QMessageBox
 from glob import glob
 import cv2
 import requests
 import numpy as np
+import pygame
+
 
 # import Test_API
 from Keywords import Keywords, Alarm
 from SettingWindow import SettingWindow
 from Inspection import Inspection
+from PlayAlarm import PlayAlarm
 import json
 import pandas as pd
 from enum import Enum, auto
@@ -28,14 +33,11 @@ webcam_status = False
 stop_webcam_time = 3
 ocr_image = []
 root_path = 'A:/salim/detected_labels'
-# warning_sound = './Sound/beep.mp3'
-# warning_sound = './Sound/beep.mp3'
-# danger_sound = './Sound/bleep.mp3'
-# error_sound = './Sound/error_2.mp3'
 warning_sound = './Sound/alert.MP3'
 danger_sound = './Sound/alert.MP3'
 error_sound = './Sound/alert.MP3'
 # root_path = './Image'
+init_excel_file = './Database/제품등록정보20211015.xlsx'
 
 
 class CumulCount(Enum):
@@ -151,7 +153,7 @@ class Camera(QThread):
         self.old_output = []
 
     def run(self):
-        global webcam_status, stop_webcam_time, ocr_image, undetected_label_cnt
+        global webcam_status, ocr_image, undetected_label_cnt
         result = {}
         while True:
             undetected_label_cnt = len(glob(os.path.join(root_path, 'unrecognized/*.png')))
@@ -185,6 +187,7 @@ class WindowClass(QMainWindow, form_class):
         self.prior_barcode = 0
 
         self.setupUi(self)
+        self.setWindowIcon(QIcon('./Image/logo.png'))
         self.setWindowTitle("흙살림")
         self.setFont(QFont('나눔스퀘어_ac', 20))
 
@@ -208,8 +211,8 @@ class WindowClass(QMainWindow, form_class):
             # print('Checking for database file in config')
             get_file_nm = settings.value('db_file')
         else:
-            get_file_nm = './Database/제품등록정보20211015.xlsx'
-            settings.setValue('db_file', get_file_nm)
+            get_file_nm = init_excel_file
+            settings.setValue('db_file', init_excel_file)
 
         self.setting_page = SettingWindow(get_file_nm)
         self.actionSettings.triggered.connect(self.show_setting_window)
@@ -217,9 +220,14 @@ class WindowClass(QMainWindow, form_class):
         self.db = Db()
         self.inspection_setting = self.db.get_product_inspections()
 
+        self.PlayAlarm = PlayAlarm()
+        self.PlayAlarm.open_dialog.connect(self.open_msgbox)
+        self.PlayAlarm.start()
+
         timer = QTimer(self)
         timer.timeout.connect(self.show_time)
         timer.start()
+        # print(time.time() - start)
 
         # -------- Tab1 검사화면 inspection_window --------
         self.btn_start.clicked.connect(self.start_webcam)
@@ -252,7 +260,12 @@ class WindowClass(QMainWindow, form_class):
         # font.setPointSize(15)
         # error_cnt_table.setFont(font)
         # error_cnt_table.setColumnWidth(0, QHeaderView.Stretch)
-        error_cnt_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        # error_cnt_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        # error_cnt_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
+        header = error_cnt_table.horizontalHeader()
+        header.setSectionResizeMode(QHeaderView.ResizeToContents)
+        header.setSectionResizeMode(0, QHeaderView.Stretch)
+
         error_cnt_table.horizontalHeader().setMinimumHeight(35)
         error_cnt_table.setSelectionMode(QAbstractItemView.NoSelection)
         error_cnt_table.setAutoFillBackground(False)
@@ -267,7 +280,7 @@ class WindowClass(QMainWindow, form_class):
 
         # 카메라
         # self.th1 = Camera()
-        # self.th1.label_cnt.connect(self.undetected_label_cnt)
+        # # self.th1.label_cnt.connect(self.undetected_label_cnt)
         # self.th1.result.connect(self.get_result)
         # self.th1.start()
 
@@ -294,47 +307,7 @@ class WindowClass(QMainWindow, form_class):
                     'label_loc': '/mnt/vitasoft/salim/detected_labels/2500000289552/09.png',
                     'product_name': {'name': '친환경 대추방울토마토', 'status': 'success'}, 'rot_angle': 270,
                     'weight': {'db': '600g', 'ocr_rslt': '600g', 'score': 1.0, 'status': 'success'}},
-                   {'barcode': '2500000279935', 'cert_mark': ['organic'], 'cert_result': {
-                       '04829818': {'in_db': False, 'mark_status': 'mark and producer number doesn\'t match',
-                                    'number': {'db': '04829818', 'ocr_rslt': '04829818'}},
-                       '12100489': {'in_db': True, 'mark_status': 'success',
-                                    'name': {'db': '김영대', 'ocr_rslt': '김영대', 'score': 1.0},
-                                    'number': {'db': '12100489', 'ocr_rslt': '12100489', 'score': 1.0}}},
-                    'date_time': '02/15/2022, 16:40:53', 'label_id': 562,
-                    'label_loc': '/mnt/vitasoft/salim/detected_labels/2500000289552/09.png',
-                    'product_name': {'name': '친환경 대추방울토마토', 'status': 'success'}, 'rot_angle': 270,
-                    'weight': {'db': '600g', 'ocr_rslt': '600g', 'score': 1.0, 'status': 'success'}},
-                   {'barcode': '2500000279935', 'cert_mark': ['organic'], 'cert_result': {
-                       '04829818': {'in_db': False, 'mark_status': 'mark and producer number doesn\'t match',
-                                    'number': {'db': '04829818', 'ocr_rslt': '04829818'}},
-                       '12100489': {'in_db': True, 'mark_status': 'success',
-                                    'name': {'db': '김영대', 'ocr_rslt': '김영대', 'score': 1.0},
-                                    'number': {'db': '12100489', 'ocr_rslt': '12100489', 'score': 1.0}}},
-                    'date_time': '02/15/2022, 16:40:53', 'label_id': 562,
-                    'label_loc': '/mnt/vitasoft/salim/detected_labels/2500000289552/09.png',
-                    'product_name': {'name': '친환경 대추방울토마토', 'status': 'success'}, 'rot_angle': 270,
-                    'weight': {'db': '600g', 'ocr_rslt': '600g', 'score': 1.0, 'status': 'success'}},
-                   {'barcode': '2500000279935', 'cert_mark': ['organic'], 'cert_result': {
-                       '04829818': {'in_db': False, 'mark_status': 'mark and producer number doesn\'t match',
-                                    'number': {'db': '04829818', 'ocr_rslt': '04829818'}},
-                       '12100489': {'in_db': True, 'mark_status': 'success',
-                                    'name': {'db': '김영대', 'ocr_rslt': '김영대', 'score': 1.0},
-                                    'number': {'db': '12100489', 'ocr_rslt': '12100489', 'score': 1.0}}},
-                    'date_time': '02/15/2022, 16:40:53', 'label_id': 562,
-                    'label_loc': '/mnt/vitasoft/salim/detected_labels/2500000289552/09.png',
-                    'product_name': {'name': '친환경 대추방울토마토', 'status': 'success'}, 'rot_angle': 270,
-                    'weight': {'db': '600g', 'ocr_rslt': '600g', 'score': 1.0, 'status': 'success'}},
-                   {'barcode': '2500000279935', 'cert_mark': ['organic'], 'cert_result': {
-                       '04829818': {'in_db': False, 'mark_status': 'mark and producer number doesn\'t match',
-                                    'number': {'db': '04829818', 'ocr_rslt': '04829818'}},
-                       '12100489': {'in_db': True, 'mark_status': 'success',
-                                    'name': {'db': '김영대', 'ocr_rslt': '김영대', 'score': 1.0},
-                                    'number': {'db': '12100489', 'ocr_rslt': '12100489', 'score': 1.0}}},
-                    'date_time': '02/15/2022, 16:40:53', 'label_id': 562,
-                    'label_loc': '/mnt/vitasoft/salim/detected_labels/2500000289552/09.png',
-                    'product_name': {'name': '친환경 대추방울토마토', 'status': 'success'}, 'rot_angle': 270,
-                    'weight': {'db': '600g', 'ocr_rslt': '600g', 'score': 1.0, 'status': 'success'}},
-                   {'barcode': '2500000279935', 'cert_mark': ['organic'], 'cert_result': {
+                   {'barcode': 'unrecognized', 'cert_mark': ['organic'], 'cert_result': {
                        '04829818': {'in_db': False, 'mark_status': 'mark and producer number doesn\'t match',
                                     'number': {'db': '04829818', 'ocr_rslt': '04829818'}},
                        '12100489': {'in_db': True, 'mark_status': 'success',
@@ -354,10 +327,27 @@ class WindowClass(QMainWindow, form_class):
                     'label_loc': '/mnt/vitasoft/salim/detected_labels/2500000289552/09.png',
                     'product_name': {'name': '친환경 대추방울토마토', 'status': 'success'}, 'rot_angle': 270,
                     'weight': {'db': '600g', 'ocr_rslt': '600g', 'score': 1.0, 'status': 'success'}}
+
                    ]
 
         for result in results:
             self.get_result(result)
+            time.sleep(1)
+
+    @pyqtSlot(bool)
+    def open_msgbox(self):
+        self.PlayAlarm.play_status = False
+        product_name = self.db.get_product_name_by_barcode(self.prior_barcode)
+        self.cumul_result[product_name][Keywords.alarm.eng()] = False
+        alert = QMessageBox.critical(self, '불학격', f'{product_name} 불합격 결과 10개 이상', QMessageBox.Yes)
+        if alert == QMessageBox.Yes:
+            self.setoff_alarm(product_name)
+
+    def setoff_alarm(self, product_name):
+        self.PlayAlarm.stop()
+        self.cumul_result[product_name][Keywords.alarm.eng()] = False
+
+
 
     # @pyqtSlot(int)
     def add_undlbl_cnt(self):
@@ -378,12 +368,12 @@ class WindowClass(QMainWindow, form_class):
         inspection_table.horizontalHeader().setStyleSheet("::section{color: white; font-weight:bold; "
                                                           "background-color: #000030;}")
 
-    @pyqtSlot(dict)
+    # @pyqtSlot(dict)
     def get_result(self, result_dict):
         self.db.__init__()
-        self.reset_inspection_table()
         # print(f'result --> {result_dict}')
         if result_dict.get(Keywords.barcode.eng()) != 'unrecognized':
+            self.reset_inspection_table()
             barcode = int(result_dict[Keywords.barcode.eng()])
             self.prior_barcode = barcode
 
@@ -423,8 +413,6 @@ class WindowClass(QMainWindow, form_class):
             # result_items_lst = [inspection_table.item(row_idx, 4).text() for row_idx in
             #                     range(inspection_table.rowCount())]  # ocr 항목들 결과값들 list
             self.print_final_result(final_result, brush)
-
-
             '''
                 알람 띄우기
                 warning은 warning.mp3 한번 재생
@@ -433,13 +421,11 @@ class WindowClass(QMainWindow, form_class):
                 
                 (끄기 popup 창 띄워서 제어) --> 한번 끄면 계속 꺼놓기
             '''
-
             # 에러 테이블 출력
             self.error_result(barcode, final_result)
 
             # 알람 울리기
             self.set_alarm(barcode)
-
         else:
             self.add_undlbl_cnt()
 
@@ -484,7 +470,7 @@ class WindowClass(QMainWindow, form_class):
         inspection_table.setItem(0, self.insp_tbl_init_col - 1, text)
 
     def error_result(self, barcode, final_result_text):
-        print(final_result_text)
+        # print(final_result_text)
         error_cnt_table = self.error_cnt_table
         error_cnt_table.setRowCount(0)
         # 검사 / pass 로 걸러진 최종 결과
@@ -492,18 +478,18 @@ class WindowClass(QMainWindow, form_class):
         # 누적 테이블에 없으면 새로 PdCumul 인스턴스 생성해서 cumu_result dict에 추가하기
         if product_name not in self.cumul_result:
             rslt_dict = {}
-            rslt_dict['alarm'] = True
-            rslt_dict['results'] = PdCumul(product_name)
+            rslt_dict[Keywords.alarm.eng()] = True
+            rslt_dict[Keywords.result.eng()] = PdCumul(product_name)
             self.cumul_result[product_name] = rslt_dict
-        pd_class = self.cumul_result[product_name]['results']
-        pd_class.add_result(self.final_result_txt[final_result_text])
-        self.cumul_result.move_to_end(product_name, False)
+        pd_class_dict = self.cumul_result[product_name][Keywords.result.eng()]
+        pd_class_dict.add_result(self.final_result_txt[final_result_text])
+        self.cumul_result.move_to_end(product_name, False) # 새로 증가된 제품은 맨위로 올리기
 
-        for row, key in enumerate(self.cumul_result.keys()):
-            cumul_class = self.cumul_result[key]['results']  # PdCumul class
+        for row, pd_name in enumerate(self.cumul_result.keys()):
+            cumul_class = self.cumul_result[pd_name][Keywords.result.eng()]  # PdCumul class
             rslt = cumul_class.rslt_dict()
             error_cnt_table.insertRow(row)
-            error_cnt_table.setItem(row, 0, QTableWidgetItem(product_name))
+            error_cnt_table.setItem(row, 0, QTableWidgetItem(pd_name))
             for col, key in enumerate(rslt.keys()):
                 text = QTableWidgetItem()
                 text.setTextAlignment(Qt.AlignCenter)
@@ -540,21 +526,13 @@ class WindowClass(QMainWindow, form_class):
 
     def set_alarm(self, barcode):
         product_name = self.db.get_product_name_by_barcode(barcode)
-        alarm_status = self.cumul_result[product_name]['alarm']
-        cumul_rslt = self.cumul_result[product_name]['results'].rslt_dict()
+        alarm_status = self.cumul_result[product_name][Keywords.alarm.eng()]
+        cumul_rslt = self.cumul_result[product_name][Keywords.result.eng()].rslt_dict()
         fail_cs = cumul_rslt[Keywords.fail_cs.eng()]
-        if fail_cs > 0 and alarm_status:
-            if fail_cs % Alarm.danger.value == 0 or fail_cs % Alarm.error.value == 0:
-                self.show_alarm_msg(fail_cs, product_name)
-            else:
-                # playsound(warning_sound, True)
-                # print('alert.mp3')
-                pass
+        self.PlayAlarm.play_status = alarm_status
+        if alarm_status:
+            self.PlayAlarm.error_cnt = fail_cs
 
-    def show_alarm_msg(self, fail_cs, product_name):
-        # if self.cumul_result[product_name].
-        # print('show alarm msg box')
-        pass
 
     def show_image(self, image_path, rot_angle):
         from_path = '/mnt/vitasoft/salim/detected_labels'

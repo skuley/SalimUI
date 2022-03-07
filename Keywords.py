@@ -50,6 +50,9 @@ class Keywords(Enum):
     pass_cu = '유보(누적)'
     total = '총계'
 
+    # 알람
+    alarm = '알람'
+
     def kor(self):
         return self.value
 
