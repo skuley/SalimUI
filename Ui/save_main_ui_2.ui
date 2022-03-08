@@ -319,12 +319,13 @@
     <property name="title">
      <string>설정</string>
     </property>
-    <addaction name="actionSettings"/>
+    <addaction name="inspectionSetting"/>
+    <addaction name="action"/>
    </widget>
    <addaction name="menu"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
-  <action name="actionSettings">
+  <action name="inspectionSetting">
    <property name="text">
     <string>검사설정</string>
    </property>
@@ -332,6 +333,11 @@
   <action name="action_label_settings">
    <property name="text">
     <string>라벨영역 설정</string>
+   </property>
+  </action>
+  <action name="action">
+   <property name="text">
+    <string>인증정보</string>
    </property>
   </action>
  </widget>
